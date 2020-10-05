@@ -1,0 +1,1116 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   sodipodi:docname="nfkbNetwork.svg"
+   inkscape:version="1.0 (4035a4f, 2020-05-01)"
+   version="1.1"
+   id="svg2"
+   height="1051.36"
+   width="1392.5197">
+  <sodipodi:namedview
+     inkscape:document-rotation="0"
+     inkscape:guide-bbox="true"
+     showguides="true"
+     units="cm"
+     inkscape:window-maximized="0"
+     inkscape:window-y="23"
+     inkscape:window-x="294"
+     inkscape:window-height="979"
+     inkscape:window-width="1235"
+     showgrid="false"
+     inkscape:current-layer="layer1"
+     inkscape:document-units="px"
+     inkscape:cy="242.59552"
+     inkscape:cx="603.28009"
+     inkscape:zoom="0.35"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     borderopacity="1.0"
+     bordercolor="#666666"
+     pagecolor="#ffffff"
+     id="base" />
+  <defs
+     id="defs4">
+    <marker
+       style="overflow:visible"
+       id="Arrow2Lend"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow2Lend">
+      <path
+         inkscape:connector-curvature="0"
+         transform="matrix(-1.1,0,0,-1.1,-1.1,0)"
+         d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z"
+         style="font-size:12px;fill-rule:evenodd;stroke-width:0.625;stroke-linejoin:round"
+         id="path4038" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="Arrow2Send"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow2Send">
+      <path
+         inkscape:connector-curvature="0"
+         transform="matrix(-0.3,0,0,-0.3,0.69,0)"
+         d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z"
+         style="font-size:12px;fill-rule:evenodd;stroke-width:0.625;stroke-linejoin:round"
+         id="path4050" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="Arrow2Mend"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow2Mend">
+      <path
+         inkscape:connector-curvature="0"
+         transform="scale(-0.6,-0.6)"
+         d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z"
+         style="font-size:12px;fill-rule:evenodd;stroke-width:0.625;stroke-linejoin:round"
+         id="path4044" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="Arrow1Send"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow1Send">
+      <path
+         inkscape:connector-curvature="0"
+         transform="matrix(-0.2,0,0,-0.2,-1.2,0)"
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;marker-start:none"
+         d="M 0,0 5,-5 -12.5,0 5,5 0,0 z"
+         id="path4032" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0"
+       refX="0"
+       id="Arrow1Lend"
+       style="overflow:visible">
+      <path
+         inkscape:connector-curvature="0"
+         id="path4020"
+         d="M 0,0 5,-5 -12.5,0 5,5 0,0 z"
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;marker-start:none"
+         transform="matrix(-0.8,0,0,-0.8,-10,0)" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0"
+       refX="0"
+       id="Arrow1Lend-3"
+       style="overflow:visible">
+      <path
+         id="path4020-4"
+         d="M 0,0 5,-5 -12.5,0 5,5 0,0 z"
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;marker-start:none"
+         transform="matrix(-0.8,0,0,-0.8,-10,0)"
+         inkscape:connector-curvature="0" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0"
+       refX="0"
+       id="Arrow1Lend-5"
+       style="overflow:visible">
+      <path
+         id="path4020-0"
+         d="M 0,0 5,-5 -12.5,0 5,5 0,0 z"
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;marker-start:none"
+         transform="matrix(-0.8,0,0,-0.8,-10,0)"
+         inkscape:connector-curvature="0" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0"
+       refX="0"
+       id="Arrow1Lend-5-9"
+       style="overflow:visible">
+      <path
+         id="path4020-0-7"
+         d="M 0,0 5,-5 -12.5,0 5,5 0,0 z"
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;marker-start:none"
+         transform="matrix(-0.8,0,0,-0.8,-10,0)"
+         inkscape:connector-curvature="0" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0"
+       refX="0"
+       id="Arrow1Lend-5-9-7"
+       style="overflow:visible">
+      <path
+         id="path4020-0-7-2"
+         d="M 0,0 5,-5 -12.5,0 5,5 0,0 z"
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;marker-start:none"
+         transform="matrix(-0.8,0,0,-0.8,-10,0)"
+         inkscape:connector-curvature="0" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0"
+       refX="0"
+       id="Arrow1Lend-5-0"
+       style="overflow:visible">
+      <path
+         id="path4020-0-1"
+         d="M 0,0 5,-5 -12.5,0 5,5 0,0 z"
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;marker-start:none"
+         transform="matrix(-0.8,0,0,-0.8,-10,0)"
+         inkscape:connector-curvature="0" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="Arrow2Mend-5"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow2Mend">
+      <path
+         transform="scale(-0.6,-0.6)"
+         d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z"
+         style="font-size:12px;fill-rule:evenodd;stroke-width:0.625;stroke-linejoin:round"
+         id="path4044-7"
+         inkscape:connector-curvature="0" />
+    </marker>
+    <marker
+       inkscape:stockid="Arrow1Lend"
+       orient="auto"
+       refY="0"
+       refX="0"
+       id="Arrow1Lend-5-9-4"
+       style="overflow:visible">
+      <path
+         id="path4020-0-7-1"
+         d="M 0,0 5,-5 -12.5,0 5,5 0,0 z"
+         style="fill-rule:evenodd;stroke:#000000;stroke-width:1pt;marker-start:none"
+         transform="matrix(-0.8,0,0,-0.8,-10,0)"
+         inkscape:connector-curvature="0" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="Arrow2Mend-0"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow2Mend">
+      <path
+         transform="scale(-0.6,-0.6)"
+         d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z"
+         style="font-size:12px;fill-rule:evenodd;stroke-width:0.625;stroke-linejoin:round"
+         id="path4044-0"
+         inkscape:connector-curvature="0" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="Arrow2Mend-0-4"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow2Mend">
+      <path
+         transform="scale(-0.6,-0.6)"
+         d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z"
+         style="font-size:12px;fill-rule:evenodd;stroke-width:0.625;stroke-linejoin:round"
+         id="path4044-0-6"
+         inkscape:connector-curvature="0" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="Arrow2Mend-0-4-7"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow2Mend">
+      <path
+         transform="scale(-0.6,-0.6)"
+         d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z"
+         style="font-size:12px;fill-rule:evenodd;stroke-width:0.625;stroke-linejoin:round"
+         id="path4044-0-6-1"
+         inkscape:connector-curvature="0" />
+    </marker>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:15.89999962;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       d="M 60.920943,262.64498 C 463.18312,146.40275 956.08254,167.43132 1367.9971,234.42018"
+       id="path2985-5"
+       inkscape:connector-curvature="0"
+       transform="translate(0,0.9964472)"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:15.89999962;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none"
+       d="M 60.920943,262.64498 C 463.18312,146.40275 956.08254,167.43132 1367.9971,234.42018"
+       id="path2985-5-8"
+       inkscape:connector-curvature="0"
+       transform="translate(0,0.9964472)"
+       sodipodi:nodetypes="cc" />
+  </defs>
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1"
+     transform="translate(0,-0.9964472)">
+    <path
+       sodipodi:type="arc"
+       style="fill:none;stroke:#002525;stroke-width:1.89999998;stroke-linecap:butt;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
+       id="path2997"
+       sodipodi:cx="-1717.1428"
+       sodipodi:cy="-194.35429"
+       sodipodi:rx="165.71428"
+       sodipodi:ry="88.571426"
+       d="m -1551.4285,-194.35429 a 165.71428,88.571426 0 1 1 -331.4286,0 165.71428,88.571426 0 1 1 331.4286,0 z"
+       transform="matrix(0.60012995,0,0,0.5583076,-869.49116,110.86591)" />
+    <flowRoot
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;line-height:0.01%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none"
+       id="flowRoot3779"
+       transform="matrix(1.1452993,0,0,1.1452993,287.39098,-23.118222)"><flowRegion
+         id="flowRegion3781"><use
+           x="0"
+           y="0"
+           xlink:href="#path2997"
+           id="use3783"
+           width="1531.063"
+           height="1051.36" /></flowRegion><flowPara
+         style="font-size:40px;line-height:1.25"
+         id="flowPara3785">IKKa</flowPara></flowRoot>
+    <flowRoot
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;line-height:0.01%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none"
+       id="flowRoot3779-7"
+       transform="matrix(1.1452993,0,0,1.1452993,2287.391,24.52535)"><flowRegion
+         id="flowRegion3781-4" /><flowPara
+         style="font-size:40px;line-height:1.25"
+         id="flowPara3785-9">IKKa</flowPara></flowRoot>
+    <flowRoot
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;line-height:0.01%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none"
+       id="flowRoot3779-8"
+       transform="matrix(1.1452993,0,0,1.1452993,2287.391,24.52535)"><flowRegion
+         id="flowRegion3781-8" /><flowPara
+         style="font-size:40px;line-height:1.25"
+         id="flowPara3785-4">IKKa</flowPara></flowRoot>
+    <path
+       sodipodi:type="arc"
+       style="fill:none;stroke:#002525;stroke-width:1.89999998;stroke-linecap:butt;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
+       id="path2997-5"
+       sodipodi:cx="-1717.1428"
+       sodipodi:cy="-194.35429"
+       sodipodi:rx="165.71428"
+       sodipodi:ry="88.571426"
+       d="m -1551.4285,-194.35429 a 165.71428,88.571426 0 1 1 -331.4286,0 165.71428,88.571426 0 1 1 331.4286,0 z"
+       transform="matrix(0.60012995,0,0,0.5583076,-650.385,300.21594)" />
+    <flowRoot
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;line-height:0.01%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none"
+       id="flowRoot3779-5"
+       transform="matrix(1.1452993,0,0,1.1452993,2287.391,24.52535)"><flowRegion
+         id="flowRegion3781-1"><use
+           x="0"
+           y="0"
+           xlink:href="#path2997-5"
+           id="use3783-7"
+           width="1531.063"
+           height="1051.36"
+           transform="matrix(0.87313421,0,0,0.87313421,-1997.1993,-21.413922)" /></flowRegion><flowPara
+         style="font-size:40px;line-height:1.25"
+         id="flowPara3785-1">IKKa</flowPara></flowRoot>
+    <flowRoot
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;line-height:0.01%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none"
+       id="flowRoot3779-1"
+       transform="matrix(1.1452993,0,0,1.1452993,509.21925,164.20651)"><flowRegion
+         id="flowRegion3781-5"><use
+           x="0"
+           y="0"
+           xlink:href="#path2997"
+           id="use3783-2"
+           width="1531.063"
+           height="1051.36" /></flowRegion><flowPara
+         style="font-size:40px;line-height:1.25"
+         id="flowPara3785-7">IKKa</flowPara></flowRoot>
+    <rect
+       style="fill:none;stroke:#002525;stroke-width:1.49028778;stroke-linecap:butt;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
+       id="rect3924-1"
+       width="195.53104"
+       height="82.140968"
+       x="-1997.7655"
+       y="699.85736" />
+    <flowRoot
+       transform="translate(2109.9387,-393.7157)"
+       xml:space="preserve"
+       style="font-style:normal;font-weight:normal;line-height:0.01%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none"
+       id="flowRoot3926-4"><flowRegion
+         id="flowRegion3928-2"><use
+           height="1052.3622"
+           width="744.09448"
+           x="0"
+           y="0"
+           xlink:href="#rect3924-1"
+           id="use3930-3"
+           transform="translate(-2109.9387,393.7157)" /></flowRegion><flowPara
+         style="font-size:66.6932px;line-height:1.25"
+         id="flowPara3932-2">IKKi</flowPara></flowRoot>
+    <flowRoot
+       transform="translate(0,0.9964472)"
+       style="font-style:normal;font-weight:normal;line-height:0.01%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none"
+       id="flowRoot14218"
+       xml:space="preserve"><flowRegion
+         id="flowRegion14220"><rect
+           y="851.35999"
+           x="-588.57141"
+           height="114.28571"
+           width="208.57143"
+           id="rect14222" /></flowRegion><flowPara
+         style="font-size:40px;line-height:1.25"
+         id="flowPara14224"> </flowPara></flowRoot>
+    <text
+       y="0"
+       x="187.19792"
+       transform="translate(0,-22)"
+       id="text14248"
+       style="font-style:normal;font-weight:normal;font-size:40px;line-height:0%;font-family:sans-serif;text-align:end;letter-spacing:0px;word-spacing:0px;text-anchor:end;fill:#000000;fill-opacity:1;stroke:none"
+       xml:space="preserve"><textPath
+         id="textPath14252"
+         xlink:href="#path2985-1"><tspan
+           style="text-align:end;text-anchor:end"
+           id="tspan14250">Cytoplasm</tspan></textPath></text>
+    <g
+       style="stroke-width:1.88561"
+       transform="matrix(0.53051745,0,0,0.53014452,642.12871,485.43926)"
+       id="g1210">
+      <path
+         sodipodi:nodetypes="cc"
+         transform="translate(0,0.9964472)"
+         inkscape:connector-curvature="0"
+         id="path2985"
+         d="M 60.920943,262.64498 C 463.18312,146.40275 956.08254,167.43132 1367.9971,234.42018"
+         style="fill:none;stroke:#000000;stroke-width:29.9813;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <path
+         sodipodi:nodetypes="cc"
+         inkscape:connector-curvature="0"
+         id="path2985-1"
+         d="M 45.595347,822.54017 C 447.85752,706.29794 954.89907,705.10316 1366.8136,772.09202"
+         style="fill:none;stroke:#000000;stroke-width:29.9813;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <rect
+         y="403.14661"
+         x="566.29486"
+         height="44.566418"
+         width="106.08736"
+         id="rect3924"
+         style="fill:none;stroke:#002525;stroke-width:6.33274;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <flowRoot
+         transform="matrix(0.54256019,0,0,0.54256019,1710.6593,195.29809)"
+         id="flowRoot3926"
+         style="font-style:normal;font-weight:normal;line-height:0.01%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.88561"
+         xml:space="preserve"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96"><flowRegion
+           style="stroke-width:1.88561"
+           id="flowRegion3928"><use
+             style="stroke-width:1.88561"
+             height="1051.36"
+             width="1531.063"
+             transform="matrix(1.8431135,0,0,1.8431135,-3152.9393,-352.58409)"
+             id="use3930"
+             xlink:href="#rect3924"
+             y="0"
+             x="0" /></flowRegion><flowPara
+           id="flowPara3932"
+           style="font-size:66.6932px;line-height:1.25;stroke-width:1.88561">IKKa</flowPara></flowRoot>
+      <rect
+         y="446.63144"
+         x="1029.5555"
+         height="44.566418"
+         width="106.08736"
+         id="rect3924-2"
+         style="fill:none;stroke:#002525;stroke-width:6.33274;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <flowRoot
+         transform="matrix(0.54256019,0,0,0.54256019,1220.8559,-169.92564)"
+         id="flowRoot3926-1"
+         style="font-style:normal;font-weight:normal;line-height:0.01%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.88561"
+         xml:space="preserve"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96"><flowRegion
+           style="stroke-width:1.88561"
+           id="flowRegion3928-6"><use
+             style="stroke-width:1.88561"
+             height="1051.36"
+             width="1531.063"
+             transform="matrix(1.8431135,0,0,1.8431135,-2253.8622,320.56469)"
+             id="use3930-8"
+             xlink:href="#rect3924-2"
+             y="0"
+             x="0" /></flowRegion><flowPara
+           id="flowPara3932-5"
+           style="font-size:66.6932px;line-height:1.25;stroke-width:1.88561">IKKi</flowPara></flowRoot>
+      <path
+         sodipodi:nodetypes="cc"
+         inkscape:connector-curvature="0"
+         id="path4012"
+         d="m 678.82251,426.06185 c 110.40933,-31.2563 227.48815,15.07581 339.18659,42.42641"
+         style="fill:none;stroke:#000000;stroke-width:3.77123;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Lend)"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <rect
+         y="48.204952"
+         x="654.06311"
+         height="44.566418"
+         width="106.08736"
+         id="rect3924-7"
+         style="fill:none;stroke:#002525;stroke-width:6.33274;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <flowRoot
+         transform="matrix(0.54256019,0,0,0.54256019,1172.328,-224.43327)"
+         id="flowRoot3926-6"
+         style="font-style:normal;font-weight:normal;line-height:0.01%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.88561"
+         xml:space="preserve"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96"><flowRegion
+           style="stroke-width:1.88561"
+           id="flowRegion3928-1"><use
+             style="stroke-width:1.88561"
+             height="1051.36"
+             width="1531.063"
+             transform="matrix(1.8431135,0,0,1.8431135,-2164.4197,421.02843)"
+             id="use3930-89"
+             xlink:href="#rect3924-7"
+             y="0"
+             x="0" /></flowRegion><flowPara
+           id="flowPara3932-27"
+           style="font-size:66.6932px;line-height:1.25;stroke-width:1.88561">TNF</flowPara></flowRoot>
+      <rect
+         y="278.51974"
+         x="290.4082"
+         height="44.566418"
+         width="106.08736"
+         id="rect3924-9"
+         style="fill:none;stroke:#002525;stroke-width:6.33274;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <flowRoot
+         transform="matrix(0.54256019,0,0,0.54256019,1192.5107,-272.85967)"
+         id="flowRoot3926-5"
+         style="font-style:normal;font-weight:normal;line-height:0.01%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.88561"
+         xml:space="preserve"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96"><flowRegion
+           style="stroke-width:1.88561"
+           id="flowRegion3928-4"><use
+             style="stroke-width:1.88561"
+             height="1051.36"
+             width="1531.063"
+             transform="matrix(1.8431135,0,0,1.8431135,-2197.9326,506.59757)"
+             id="use3930-31"
+             xlink:href="#rect3924-9"
+             y="0"
+             x="0" /></flowRegion><flowPara
+           id="flowPara3932-23"
+           style="font-size:66.6932px;line-height:1.25;stroke-width:1.88561">IKKn</flowPara></flowRoot>
+      <path
+         style="fill:none;stroke:#000000;stroke-width:3.77123;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Lend)"
+         d="m 406.08132,303.8471 c 76.40625,-9.35397 112.95362,30.28756 155.56349,86.87312"
+         id="path4629"
+         inkscape:connector-curvature="0"
+         transform="translate(0,0.9964472)"
+         sodipodi:nodetypes="cc"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <rect
+         y="545.22205"
+         x="541.53693"
+         height="59.269779"
+         width="216.21574"
+         id="rect3924-9-1"
+         style="fill:none;stroke:#002525;stroke-width:6.3319;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <flowRoot
+         transform="matrix(0.54256019,0,0,0.54256019,957.74111,-588.1672)"
+         id="flowRoot3926-5-3"
+         style="font-style:normal;font-weight:normal;line-height:0.01%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.88561"
+         xml:space="preserve"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96"><flowRegion
+           style="stroke-width:1.88561"
+           id="flowRegion3928-4-8"><use
+             style="stroke-width:1.88561"
+             height="1051.36"
+             width="1531.063"
+             transform="matrix(1.8431135,0,0,1.8431135,-1765.2256,1102.49)"
+             id="use3930-31-7"
+             xlink:href="#rect3924-9-1"
+             y="0"
+             x="0" /></flowRegion><flowPara
+           id="flowPara3932-23-4"
+           style="font-size:66.6932px;line-height:1.25;stroke-width:1.88561">IκBα|NF-κB</flowPara></flowRoot>
+      <rect
+         y="242.15425"
+         x="963.1698"
+         height="44.566418"
+         width="106.08736"
+         id="rect3924-7-3"
+         style="fill:none;stroke:#002525;stroke-width:6.33274;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <flowRoot
+         transform="matrix(0.54256019,0,0,0.54256019,566.41113,-270.99961)"
+         id="flowRoot3926-6-1"
+         style="font-style:normal;font-weight:normal;line-height:0.01%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.88561"
+         xml:space="preserve"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96"><flowRegion
+           style="stroke-width:1.88561"
+           id="flowRegion3928-1-9"><use
+             style="stroke-width:1.88561"
+             height="1051.36"
+             width="1531.063"
+             transform="matrix(1.8431135,0,0,1.8431135,-1043.96,506.85549)"
+             id="use3930-89-8"
+             xlink:href="#rect3924-7-3"
+             y="0"
+             x="0" /></flowRegion><flowPara
+           id="flowPara3932-27-6"
+           style="font-size:66.6932px;line-height:1.25;stroke-width:1.88561">A20</flowPara></flowRoot>
+      <flowRoot
+         xml:space="preserve"
+         id="flowRoot4902"
+         style="font-style:normal;font-weight:normal;line-height:0.01%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.88561"
+         transform="translate(0,0.9964472)"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96"><flowRegion
+           style="stroke-width:1.88561"
+           id="flowRegion4904"><rect
+             style="stroke-width:1.88561"
+             id="rect4906"
+             width="121.21831"
+             height="72.73098"
+             x="913.17792"
+             y="241.21765" /></flowRegion><flowPara
+           id="flowPara4908"
+           style="font-size:40px;line-height:1.25;stroke-width:1.88561"> </flowPara></flowRoot>
+      <path
+         style="fill:none;stroke:#000000;stroke-width:3.77123;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Lend)"
+         d="M 694.98495,99.796288 C 593.01191,151.84051 518.41315,186.4508 486.89353,301.8268"
+         id="path4934"
+         inkscape:connector-curvature="0"
+         transform="translate(0,0.9964472)"
+         sodipodi:nodetypes="cc"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <rect
+         y="547.22034"
+         x="922.76361"
+         height="44.566418"
+         width="106.08736"
+         id="rect3924-9-6"
+         style="fill:none;stroke:#002525;stroke-width:6.33274;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <flowRoot
+         transform="matrix(0.54256019,0,0,0.54256019,800.74616,-553.76111)"
+         id="flowRoot3926-5-5"
+         style="font-style:normal;font-weight:normal;line-height:0.01%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.88561"
+         xml:space="preserve"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96"><flowRegion
+           style="stroke-width:1.88561"
+           id="flowRegion3928-4-0"><use
+             style="stroke-width:1.88561"
+             height="1051.36"
+             width="1531.063"
+             transform="matrix(1.8431135,0,0,1.8431135,-1475.866,1028.017)"
+             id="use3930-31-9"
+             xlink:href="#rect3924-9-6"
+             y="0"
+             x="0" /></flowRegion><flowPara
+           id="flowPara3932-23-0"
+           style="font-size:66.6932px;line-height:1.25;stroke-width:1.88561">IκBα</flowPara></flowRoot>
+      <rect
+         y="535.09851"
+         x="183.33202"
+         height="44.566418"
+         width="106.08736"
+         id="rect3924-9-6-0"
+         style="fill:none;stroke:#002525;stroke-width:6.33274;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <flowRoot
+         transform="matrix(0.54256019,0,0,0.54256019,-136.50067,-1170.0535)"
+         id="flowRoot3926-5-5-6"
+         style="font-style:normal;font-weight:normal;line-height:0.01%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.88561"
+         xml:space="preserve"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96"><flowRegion
+           style="stroke-width:1.88561"
+           id="flowRegion3928-4-0-1"><use
+             style="stroke-width:1.88561"
+             height="1051.36"
+             width="1531.063"
+             transform="matrix(1.8431135,0,0,1.8431135,251.58623,2163.9138)"
+             id="use3930-31-9-3"
+             xlink:href="#rect3924-9-6-0"
+             y="0"
+             x="0" /></flowRegion><flowPara
+           id="flowPara3932-23-0-8"
+           style="font-size:66.6932px;line-height:1.25;stroke-width:1.88561">IκBα</flowPara></flowRoot>
+      <rect
+         y="826.4082"
+         x="314.65186"
+         height="44.566418"
+         width="106.08736"
+         id="rect3924-9-6-0-9"
+         style="fill:none;stroke:#002525;stroke-width:6.33274;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <flowRoot
+         transform="matrix(0.54256019,0,0,0.54256019,-320.15346,-1703.4727)"
+         id="flowRoot3926-5-5-6-3"
+         style="font-style:normal;font-weight:normal;line-height:0.01%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.88561"
+         xml:space="preserve"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96"><flowRegion
+           style="stroke-width:1.88561"
+           id="flowRegion3928-4-0-1-4"><use
+             style="stroke-width:1.88561"
+             height="1051.36"
+             width="1531.063"
+             transform="matrix(1.8431135,0,0,1.8431135,586.39293,3147.066)"
+             id="use3930-31-9-3-4"
+             xlink:href="#rect3924-9-6-0-9"
+             y="0"
+             x="0" /></flowRegion><flowPara
+           id="flowPara3932-23-0-8-6"
+           style="font-size:66.6932px;line-height:1.25;stroke-width:1.88561">IκBα</flowPara></flowRoot>
+      <rect
+         y="869.05652"
+         x="593.34412"
+         height="59.269779"
+         width="216.21574"
+         id="rect3924-9-1-0"
+         style="fill:none;stroke:#002525;stroke-width:6.3319;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <flowRoot
+         transform="matrix(0.54256019,0,0,0.54256019,415.88318,-1123.7102)"
+         id="flowRoot3926-5-3-6"
+         style="font-style:normal;font-weight:normal;line-height:0.01%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.88561"
+         xml:space="preserve"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96"><flowRegion
+           style="stroke-width:1.88561"
+           id="flowRegion3928-4-8-6"><use
+             style="stroke-width:1.88561"
+             height="1051.36"
+             width="1531.063"
+             transform="matrix(1.8431135,0,0,1.8431135,-766.5199,2089.5566)"
+             id="use3930-31-7-1"
+             xlink:href="#rect3924-9-1-0"
+             y="0"
+             x="0" /></flowRegion><flowPara
+           id="flowPara3932-23-4-8"
+           style="font-size:66.6932px;line-height:1.25;stroke-width:1.88561">IκBα|NF-κB</flowPara></flowRoot>
+      <rect
+         y="802.38788"
+         x="1001.5962"
+         height="44.566418"
+         width="115.53579"
+         id="rect3924-9-6-4"
+         style="fill:none;stroke:#002525;stroke-width:6.60872;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <flowRoot
+         transform="matrix(0.54256019,0,0,0.54256019,-120.33823,-1095.3022)"
+         id="flowRoot3926-5-5-9"
+         style="font-style:normal;font-weight:normal;line-height:0.01%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.88561"
+         xml:space="preserve"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96"><flowRegion
+           style="stroke-width:1.88561"
+           id="flowRegion3928-4-0-6"><use
+             style="stroke-width:1.88561"
+             height="1051.36"
+             width="1531.063"
+             transform="matrix(1.8431135,0,0,1.8431135,221.79701,2026.1387)"
+             id="use3930-31-9-37"
+             xlink:href="#rect3924-9-6-4"
+             y="0"
+             x="0" /></flowRegion><flowPara
+           id="flowPara3932-23-0-88"
+           style="font-size:66.6932px;line-height:1.25;stroke-width:1.88561">NF-κB</flowPara></flowRoot>
+      <rect
+         y="972.37634"
+         x="853.37463"
+         height="59.269779"
+         width="216.21574"
+         id="rect3924-9-1-0-5"
+         style="fill:none;stroke:#002525;stroke-width:6.3319;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <flowRoot
+         transform="matrix(0.54256019,0,0,0.54256019,-179.78194,-1981.0877)"
+         id="flowRoot3926-5-3-6-9"
+         style="font-style:normal;font-weight:normal;line-height:0.01%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.88561"
+         xml:space="preserve"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96"><flowRegion
+           style="stroke-width:1.88561"
+           id="flowRegion3928-4-8-6-8"><use
+             style="stroke-width:1.88561"
+             height="1051.36"
+             width="1531.063"
+             transform="matrix(1.8431135,0,0,1.8431135,323.98606,3669.8006)"
+             id="use3930-31-7-1-4"
+             xlink:href="#rect3924-9-1-0-5"
+             y="0"
+             x="0" /></flowRegion><flowPara
+           id="flowPara3932-23-4-8-0"
+           style="font-size:66.6932px;line-height:1.25;stroke-width:1.88561">IκBα mRNA</flowPara></flowRoot>
+      <flowRoot
+         xml:space="preserve"
+         id="flowRoot5203"
+         style="font-style:normal;font-weight:normal;line-height:0.01%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.88561"
+         transform="translate(0,0.9964472)"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96"><flowRegion
+           style="stroke-width:1.88561"
+           id="flowRegion5205"><rect
+             style="stroke-width:1.88561"
+             id="rect5207"
+             width="268.70059"
+             height="72.73098"
+             x="830.3454"
+             y="976.6087" /></flowRegion><flowPara
+           id="flowPara5209"
+           style="font-size:40px;line-height:1.25;stroke-width:1.88561"> </flowPara></flowRoot>
+      <rect
+         y="881.11743"
+         x="1145.0498"
+         height="59.269779"
+         width="216.21574"
+         id="rect3924-9-1-0-5-1"
+         style="fill:none;stroke:#002525;stroke-width:6.3319;stroke-linecap:butt;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <flowRoot
+         transform="matrix(0.54256019,0,0,0.54256019,-1029.4776,-2945.785)"
+         id="flowRoot3926-5-3-6-9-5"
+         style="font-style:normal;font-weight:normal;line-height:0.01%;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.88561"
+         xml:space="preserve"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96"><flowRegion
+           style="stroke-width:1.88561"
+           id="flowRegion3928-4-8-6-8-4"><use
+             style="stroke-width:1.88561"
+             height="1051.36"
+             width="1531.063"
+             transform="matrix(1.8431135,0,0,1.8431135,1893.7578,5447.8472)"
+             id="use3930-31-7-1-4-2"
+             xlink:href="#rect3924-9-1-0-5-1"
+             y="0"
+             x="0" /></flowRegion><flowPara
+           id="flowPara3932-23-4-8-0-0"
+           style="font-size:66.6932px;line-height:1.25;stroke-width:1.88561">A20 mRNA</flowPara></flowRoot>
+      <path
+         style="fill:none;stroke:#000000;stroke-width:3.77123;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Lend)"
+         d="M 692.96465,103.8369 C 667.8224,225.21804 680.23127,306.92785 747.51288,398.80144"
+         id="path5478"
+         inkscape:connector-curvature="0"
+         transform="translate(0,0.9964472)"
+         sodipodi:nodetypes="cc"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <path
+         style="fill:none;stroke:#000000;stroke-width:3.77123;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Lend)"
+         d="M 961.66522,273.54253 C 852.13508,278.02959 806.00761,294.11159 775.79715,402.84205"
+         id="path5668"
+         inkscape:connector-curvature="0"
+         transform="translate(0,0.9964472)"
+         sodipodi:nodetypes="cc"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <path
+         style="fill:none;stroke:#000000;stroke-width:3.77123;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Lend)"
+         d="m 1270.7719,873.57314 c 80.5051,-236.20216 68.5134,-494.2099 -189.9087,-604.07122"
+         id="path5858"
+         inkscape:connector-curvature="0"
+         transform="translate(0,0.9964472)"
+         sodipodi:nodetypes="cc"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <path
+         style="fill:none;stroke:#000000;stroke-width:3.77123;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Lend)"
+         d="m 246.47722,584.16444 c -6.68238,94.73867 36.21618,165.06465 90.91373,236.88077"
+         id="path6048"
+         inkscape:connector-curvature="0"
+         transform="translate(0,0.9964472)"
+         sodipodi:nodetypes="cc"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <path
+         style="fill:none;stroke:#000000;stroke-width:3.77123;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Lend)"
+         d="M 386.54467,813.20282 C 393.22705,718.46415 338.20666,662.2803 283.50911,590.46418"
+         id="path6048-6"
+         inkscape:connector-curvature="0"
+         sodipodi:nodetypes="cc"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <path
+         style="fill:none;stroke:#000000;stroke-width:3.77123;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Lend)"
+         d="M 848.52814,1002.8727 C 575.62494,1099.6059 -130.67668,959.81527 195.96959,598.81165"
+         id="path6450"
+         inkscape:connector-curvature="0"
+         transform="translate(0,0.9964472)"
+         sodipodi:nodetypes="cc"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <path
+         style="fill:none;stroke:#000000;stroke-width:18.8561;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Mend)"
+         d="m 715.18799,610.75063 c 57.81034,100.051 171.53931,185.31579 276.78181,220.21325"
+         id="path4934-6"
+         inkscape:connector-curvature="0"
+         sodipodi:nodetypes="cc"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <path
+         style="fill:none;stroke:#000000;stroke-width:3.77123;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Lend)"
+         d="m 1060.6601,849.32947 c 1.5551,27.47645 58.0992,40.99998 84.8529,48.48732"
+         id="path8250"
+         inkscape:connector-curvature="0"
+         transform="translate(0,0.9964472)"
+         sodipodi:nodetypes="cc"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <path
+         style="fill:none;stroke:#000000;stroke-width:3.77123;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Lend)"
+         d="m 1030.067,850.58455 c 3.348,47.46548 -18.1448,82.69982 -45.549,118.68074"
+         id="path6048-2"
+         inkscape:connector-curvature="0"
+         sodipodi:nodetypes="cc"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <path
+         style="fill:none;stroke:#000000;stroke-width:18.8561;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Mend-0)"
+         d="m 683.13612,445.63496 c 43.57176,75.40863 139.39104,99.26678 218.71251,125.5691"
+         id="path4934-6-1"
+         inkscape:connector-curvature="0"
+         sodipodi:nodetypes="cc"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <path
+         style="fill:none;stroke:#000000;stroke-width:18.8561;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Mend-0-4)"
+         d="m 296.98485,548.30402 c 77.24435,45.7979 144.11458,40.33144 228.29447,34.34518"
+         id="path9940"
+         inkscape:connector-curvature="0"
+         transform="translate(0,0.9964472)"
+         sodipodi:nodetypes="cc"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <path
+         style="fill:none;stroke:#000000;stroke-width:18.8561;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Mend-0-4)"
+         d="M 998.03071,849.32948 C 955.6382,910.7604 886.51555,904.34628 822.26417,903.87771"
+         id="path10146"
+         inkscape:connector-curvature="0"
+         transform="translate(0,0.9964472)"
+         sodipodi:nodetypes="cc"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <path
+         style="fill:none;stroke:#000000;stroke-width:18.8561;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Mend-0-4)"
+         d="M 680.84282,861.45131 646.49763,612.95378"
+         id="path10352"
+         inkscape:connector-curvature="0"
+         transform="translate(0,0.9964472)"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <path
+         style="fill:none;stroke:#000000;stroke-width:18.8561;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Mend-0-4)"
+         d="m 425.19279,853.6663 c 42.39251,61.4309 89.2918,55.0168 153.54318,54.5482"
+         id="path10146-7"
+         inkscape:connector-curvature="0"
+         sodipodi:nodetypes="cc"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <path
+         style="fill:none;stroke:#000000;stroke-width:18.8561;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;marker-end:url(#Arrow2Send)"
+         d="m 587.90878,453.34968 c -24.65913,31.0013 -16.34786,46.77176 2.02031,80.8122"
+         id="path10582"
+         inkscape:connector-curvature="0"
+         transform="translate(0,0.9964472)"
+         sodipodi:nodetypes="cc"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <path
+         style="fill:none;stroke:#000000;stroke-width:3.77123;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         d="m 911.1576,511.93853 c 123.2386,139.40105 125.2589,139.40105 125.2589,139.40105"
+         id="path14144"
+         inkscape:connector-curvature="0"
+         transform="translate(0,0.9964472)"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <path
+         style="fill:none;stroke:#000000;stroke-width:3.77123;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         d="M 1032.3759,509.90452 C 909.13733,649.30557 907.11703,649.30557 907.11703,649.30557"
+         id="path14144-7"
+         inkscape:connector-curvature="0"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <path
+         style="fill:none;stroke:#000000;stroke-width:3.77123;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         d="m 527.29963,509.90452 c 123.2386,139.40105 125.2589,139.40105 125.2589,139.40105"
+         id="path14144-73"
+         inkscape:connector-curvature="0"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <path
+         style="fill:none;stroke:#000000;stroke-width:3.77123;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         d="M 648.51793,505.8639 C 525.27933,645.26495 523.25903,645.26495 523.25903,645.26495"
+         id="path14144-73-3"
+         inkscape:connector-curvature="0"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96" />
+      <text
+         xml:space="preserve"
+         style="font-style:normal;font-weight:normal;font-size:40px;line-height:0%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.88561"
+         id="text14238"
+         transform="translate(0,-18)"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96"><textPath
+           style="stroke-width:1.88561"
+           xlink:href="#path2985"
+           id="textPath14244"><tspan
+             style="stroke-width:1.88561"
+             id="tspan14240"><tspan
+               style="stroke-width:1.88561"
+               id="tspan14242"
+               y="-201.19313"
+               x="574.26532">Cell Membrane</tspan></tspan></textPath></text>
+      <text
+         xml:space="preserve"
+         style="font-style:normal;font-weight:normal;font-size:40px;line-height:0%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.88561"
+         id="text14238-9"
+         transform="translate(38.722947,175.80039)"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96"><textPath
+           style="stroke-width:1.88561"
+           xlink:href="#path2985-5"
+           id="textPath14244-9"><tspan
+             style="stroke-width:1.88561"
+             id="tspan14240-8"><tspan
+               style="stroke-width:1.88561"
+               id="tspan14242-1"
+               y="-201.19313"
+               x="574.26532">Cytoplasm</tspan></tspan></textPath></text>
+      <text
+         xml:space="preserve"
+         style="font-style:normal;font-weight:normal;font-size:40px;line-height:0%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.88561"
+         id="text14238-9-2"
+         transform="translate(22.746423,748.86067)"
+         inkscape:export-filename="/Users/dhruvaraman/NFKB_network.png"
+         inkscape:export-xdpi="96"
+         inkscape:export-ydpi="96"><textPath
+           style="stroke-width:1.88561"
+           xlink:href="#path2985-5-8"
+           id="textPath14244-9-6">Nucleus<tspan
+   style="stroke-width:1.88561"
+   id="tspan14240-8-6"><tspan
+     style="stroke-width:1.88561"
+     id="tspan14242-1-0"
+     y="-201.19313"
+     x="574.26532" /></tspan></textPath></text>
+    </g>
+  </g>
+</svg>
