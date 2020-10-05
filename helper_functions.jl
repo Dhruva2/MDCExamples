@@ -23,6 +23,10 @@ function disp_mdc(mdc, ps)
     @show plot(p1,p2, layout=(2,1), size = (1000,500))
 end
 
+function check_sol_at_dist(s, prob, mdc)
+    prob = remake(prob;p = mdc(s)[:states])
+    return solve(prob, Tsit5())   
+end
 
 
 function l2_hessian(prob, output_map)
