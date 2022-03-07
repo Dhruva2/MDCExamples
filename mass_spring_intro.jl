@@ -15,7 +15,7 @@ macro bind(def, element)
 end
 
 # ╔═╡ 9bfd796b-35a6-4001-9ee8-ff283e713461
-using ModelingToolkit, Latexify, OrdinaryDiffEq, Plots, DiffEqSensitivity, DiffEqParamEstim, PlutoUI, ForwardDiff, FiniteDiff, LinearAlgebra, MinimallyDisruptiveCurves
+using ModelingToolkit, Latexify, OrdinaryDiffEq, Plots, PlutoUI, ForwardDiff, LinearAlgebra, MinimallyDisruptiveCurves
 
 # ╔═╡ e8175462-9bbf-11ec-3a58-0f114bb6cd58
 md"""
@@ -27,10 +27,10 @@ Here we are going to analyse to death a **really simple** example. One where min
 
 Points that will be covered in this tutorial:
 
-- Load prebuilt models from the MyModelMenagerie.jl repository.
-- Build a differentiable cost function using DiffEqParamEstim.jl.
+- Build a barebones, differentiable cost function on the output of a differential equation (the oscillator).
 - Evolve a (two-sided) minimally disruptive curve using a cost function and an initial set of parameters.
-- Sum cost functions (useful if we want to investigate behaviours of a model for multiple inputs, each of which has its own cost function)
+- Consider options and implications when choosing an initial direction of motion for the minimally disruptive curve.
+- Investigate curves that minimise disruption over multiple model conditions (through summation of cost functions)
 
 """
 
@@ -64,11 +64,11 @@ It's below, built using ModelingToolkit.jl
 
 # ╔═╡ e4c7b17f-0399-43c1-9f1a-4a49538280f5
 md"""
-Spring constant is $(@bind kval Scrubbable(2.)) 
+Mass $$m$$ is $(@bind mval Scrubbable(4.)) 
 
-Damping is $(@bind cval Scrubbable(1.)) 
+Damping $$c$$ is $(@bind cval Scrubbable(1.)) 
 
-Mass is $(@bind mval Scrubbable(4.)) 
+Spring constant $$k$$ is $(@bind kval Scrubbable(2.)) 
 
 End time is $(@bind tend Scrubbable(100))
 """
@@ -118,26 +118,13 @@ First, some background. A cost function is a mapping of the form:
 
 > parameters -> how badly the model behaves
 
-Now you have to choose what your measure of *badly behaved* constitutes. We are just going to take:
+Now you have to choose what your measure of *badly behaved* constitutes. In this example, we will choose something simple: the squared error between the solution and a nominal solution `nom_sol` on a set of timepoints. Something like:
 
-> parameters -> model -> sol -> |sol - nom_sol|^2 on a set of timepoints
+> parameters -> model -> sol -> |sol - nom_sol|^2
 
-So we are using `nom_sol` like experimental data, and taking our cost as the squared deviation from `nom_sol`.
-Of course, you could use real, noisy data, or an entirely different cost function.
+Of course, you could use real, noisy data instead of the synthetic `nom_sol`, or an entirely different cost function.
 
-How do we build the function? Well let's unroll the cost function:
-
-> parameters -> simulate model -> solution -> cost_function(solution, nom_sol)
-
-DiffEqParamEstim.jl has an excellent and flexible interface for creating cost functions. You give it a function of the form:
-> solution -> cost_function(solution, ...)
-
-and it will turn this into a differentiable cost function of the parameters, with the two methods specified in the previous paragraph.
-
-You can also use DiffEqFlux.jl or DiffEqSensitivity.jl to build your own differentiable cost functions. 
-
-
-You can make a cost function however you like. MinimallyDisruptiveCurves.jl only cares that the cost function has two methods:
+You can make a cost function however you like. You could even code it in a different language, if your model is built in e.g. Python. MinimallyDisruptiveCurves.jl only cares that the cost function has two methods:
 ```julia
 function cost(params)
    ...
@@ -153,6 +140,8 @@ function cost(params, gradient_holder)
     return cost
 end
 ```
+
+We will just use ForwardDiff to create a barebones version of the second method with the gradient. You can also use DiffEqFlux.jl or DiffEqSensitivity.jl to build your own gradients that might be more efficient or accurate.
 """
 
 # ╔═╡ c4154cc3-c543-4355-b343-a7ec79d03988
@@ -171,37 +160,71 @@ function cost(p,g)
 	return cost(p)
 end
 
-# ╔═╡ 178fa7fc-136b-4253-b2be-4724eda33101
-g = [4.,5.,2.]
+# ╔═╡ 5a4a31cc-5bdf-4610-bdc4-713735f8395b
+md"""
+Note that the gradient calculation we have coded is **not that accurate**. For instance:
+
+- ```cost(θ₀, g)``` should mutate the gradient to `g=[0., 0., 0.]`
+
+θ₀ is the nominal set of parameters, so the solution at θ₀ is identical to the nominal solution, and thus the cost is at a minimum (it is zero). Gradients at minima are always zero. However, when we try this:
+
+"""
 
 # ╔═╡ 8e3acf8c-f32c-422c-9a01-c7881a6d41a6
-cost(θ₀ , g)
-
-# ╔═╡ 3487b9bb-3d56-4672-999d-61f5b217b8fb
 begin
-	grad_template = deepcopy(θ₀);
-	@show cost(θ₀,grad_template)
-	@show grad_template;
+	g = [0., 0., 0.] #template
+	cost(θ₀ , g)
+	g
 end
 
+# ╔═╡ 638db2d2-cf26-46f8-a77e-36f76627263c
+md"""
+...but don't worry! Minimally disruptive curves can evolve accurately even with inaccurate gradient calculations, as we'll see."""
+
 # ╔═╡ b13b68e7-9540-4bb2-b26e-d6efd86608a3
-H₀ = FiniteDiff.finite_difference_hessian(cost,θ₀)
+H₀ = ForwardDiff.hessian(cost,θ₀)
+
+# ╔═╡ 348a2244-9ef2-4d3c-8af6-5ab4c1ef427e
+md"""
+### Initial direction for the MD curve
+
+- We'll consider this more fully in different examples. For now, we'll be lazy and use the least minimally disruptive direction, to infinitesimal order, as our starting direction.
+- How? For a small perturbation:
+$$C[\theta + \delta \theta] = C[\theta] + \delta \theta^T\nabla_{\theta}C[\theta] + \frac{1}{2} \delta \theta^T\nabla^2_{\theta}C[\theta] \delta \theta,$$
+from Taylor's theorem.
+- ``\nabla_{\theta} C[\theta] = 0`` at the minimum, which gets rid of one term.
+- ``\nabla^2_{\theta}C[\theta] \succeq 0`` (is positive semidefinite).
+So we just need to find a $\delta \theta$ corresponding to eigenvector of ``\nabla^2 C[\theta]`` with smallest eigenvalue. 
+"""
 
 # ╔═╡ ac4833a0-194e-46f1-97af-7245e6a29f77
 δθ₀ = eigen(H₀).vectors[:,1]
 
 # ╔═╡ d0b4f6f5-7048-4579-af33-5aed1e161acc
 md"""
+
+### Summary thus far
+- *Everything up to this point was **independent** of the MinimallyDisruptiveCurves.jl package*
+
+- We have built a differentiable cost function, and an initial curve direction. 
+- Now we want to use the package to generate curves on the parameter space that are minimally disruptive (with respect to this cost function), and starting in our chosen initial direction.
+
 ### Evolving a minimally disruptive curve
 
-**NB: up to here is independent of MinimallyDisruptiveCurves.jl (but useful didactically (?) ). All you need to bring is a cost function, and an initial direction for the curve, as just described.**
 
-First let's set the momentum. This is **the one hyperparameter** of the algorithm.
+
+First let's set the momentum. This is **the one heuristic hyperparameter** of the algorithm.
 - Fortunately, the algorithm is (as far as I've seen) pretty robust to the choice of momentum.
-- Once $ C(\theta) \geq mom $, the curve stops.
-- A larger value of mom (marginally) speeds up curve evolution, and makes the trajectory (marginally) less curvy
+- Once $ C(\theta) \geq mom $, the curve stops. So a heuristic is to set the momentum to the highest number you are willing to allow the cost to reach.
+- A larger momentum (marginally) speeds up curve evolution, and makes the trajectory (marginally) less curvy
+
 Momentum is $(@bind mom Scrubbable(1.)) 
+
+We also want to set the maximum curve length before automatic termination:
+
 Span is (0. $(@bind endspan Scrubbable(100.)) )
+
+Now we have everything we need to specify an MDCProblem:
 """
 
 # ╔═╡ 1ec6c301-b90c-4030-a853-7db1b1d8dabf
@@ -212,19 +235,25 @@ eprob = MDCProblem(cost, θ₀, δθ₀, mom, span);
 
 # ╔═╡ d2440064-c8c1-4627-99ab-b27f6b83c909
 md"""
-Now we can add some solving options. **For no reason in particular**, let's:
-- Constrain parameters 1 and 3 to lie in the interval $[0, 1000]$
-- Ask the solver to provide online output of distance as the curve evolves, on the range 0.1:1:10, and the numerical residual on the derivative of the momentum wrt to the curve direction (which should be zero).
+MinimallyDisruptiveCurves.jl has some **custom (optional) callback options** during curve evolution. These can be inserted using the `mdc_callback` keyword argument. To demonstrate, let's (**arbitrarily**):
+- Constrain parameters 1 and 3 to lie in the interval $[-1000, 1000]$
+- Provide online output of distance as the curve evolves, on the range 0.1:1:10
+- Show the numerical residual on the derivative of the momentum wrt to the curve direction (which should be zero), on the range 2.3:4:10
+You can see the full list of solving options by looking at src/evolve_options.jl in the source code.
+
+You can also use **any callback compatible with DifferentialEquations.jl and DiffEqCallbacks.jl**. These can be inserted using the `callback` keyword argument.
+
+Finally, the `solve` function that evolves MD curves inherits all keyword arguments compatible with `DifferentialEquations.solve`. For instance, we have specified `dtmin` below.
 """
 
 # ╔═╡ bc36827b-b968-41fc-8302-58a3663fbf3a
 cb = [
     Verbose([CurveDistance(0.1:1:10), HamiltonianResidual(2.3:4:10)]),
-    ParameterBounds([1,3], [-10.,-10.], [10.,10.])
+    ParameterBounds([1,3], [-1000.,-1000.], [1000.,1000.])
     ]
 
 # ╔═╡ 4430dcd3-474c-42c6-a4c9-9b41b45fd17a
-@time mdc = evolve(eprob, Tsit5);
+@time mdc = evolve(eprob, Tsit5; mdc_callback = cb, callback=nothing, dtmin=0.01);
 
 # ╔═╡ 2dfebbff-3d71-48e0-883b-020e13f38c14
 md"""
@@ -236,7 +265,7 @@ For now, let's just plot the curve:
 """
 
 # ╔═╡ 332dec4f-c942-403a-b86e-d7829e6810ae
-cc = [cost(el) for el in eachcol(trajectory(mdc))];
+cc = cost_trajectory(mdc, distances(mdc));
 
 # ╔═╡ ae4b44cb-5ce0-49cc-9e4b-3067fd03afae
 p1= plot(mdc; idxs=[1,2,3], pnames = first.(θs), what = :trajectory);
@@ -275,19 +304,16 @@ Recall from the preliminary maths that the above minimally disruptive curve only
 Let's now try to find a minimally disruptive curve that holds under **two** conditions:
 - the unforced case
 - a sinusoidal forcing term
-So points on the minimally disruptive curve will correspond to parameters that minimally disrupt behaviour of the nominal system in both of these cases.
+So points on the minimally disruptive curve will correspond to parameters that minimally disrupt the collective behaviours of the nominal system in both of these cases.
 
 What do you imagine will happen? For nonzero $F(t)$ it looks clear that all parameters in
 
 $$m\ddot{x}(t) + c \dot{x}(t) + kx(t) = F(t).$$
-will affect behaviour. One regime where the story might change a bit is when $m$ is large. Then:
+will affect behaviour.
 
-\begin{align}
-\ddot{x}(t) + \frac{c}{m}\dot{x}(t) + \frac{k}{m}x(t) &= \frac{F(t)}{m} \\
-&\approx 0.
-\end{align}
+So any curve on parameter space will be disruptive, to some extent. What is the least disruptive curve? This is no longer an analytically tractable problem like before, when $F(t) = 0$ held.
 
-So if $m$ gets big, maybe the minimally disruptive curve will preserve $\frac{c}{m}$ and $\frac{k}{m}$? We will find out! 
+1. Let's build and plot the forced system:
 """
 
 # ╔═╡ 29aa55b2-8d11-4bf0-afbe-8c381fcbc291
@@ -297,6 +323,11 @@ begin
 	nom_sol2 = solve(prob2,Tsit5())
 	plot(nom_sol2)
 end
+
+# ╔═╡ 2de1b351-cd94-4554-80ca-50f2516d2be2
+md"""
+2. Let's build a cost function that reflects 
+"""
 
 # ╔═╡ bc17b9c0-c837-4bb2-8191-963b00feb32e
 sol_cost2(sol) = sum(abs2, nom_sol2 - sol)
@@ -326,40 +357,66 @@ md"""
 
 # ╔═╡ 4c31745b-6e98-4a56-8925-2fc8c0379dab
 begin
-	H₁ = FiniteDiff.finite_difference_hessian(summed_cost,θ₀)
+	H₁ = ForwardDiff.hessian(summed_cost,θ₀)
 	δθ₁ = eigen(H₁).vectors[:,1];
 end
 
 # ╔═╡ 36b6da5e-4576-4704-8cd8-5a960c367b8d
 begin
-	mom2 = 20.
-	span2 = (-100.,100.)
+	mom2 = 50.
+	span2 = (-100.,180.)
 	eprob2 = MDCProblem(summed_cost, θ₀, δθ₁, mom2, span2);
-	cb2 = [      Verbose([CurveDistance(0.1:1:10)]),
-	            ParameterBounds([1,2,3], [0.,0.,0.], [1000.,1000.,1000.]),
-	            MomentumReadjustment(NaN)
+	cb2 = [      Verbose([CurveDistance(0.1:1:100)]),
+	            ParameterBounds([1,2,3], [0.,0.,0.], [1000.,1000.,1000.])
 	        ]
 end
 
 # ╔═╡ 2540e729-9a04-45db-8570-ac2f310ac869
-@time mdc2 = evolve(eprob2, Tsit5; mdc_callback=cb2, dtmin=0.05, dtmax = 0.4);
+@time mdc2 = evolve(eprob2, Tsit5; mdc_callback=cb2);
 
 # ╔═╡ 29c0211b-965f-4dc8-8310-5e618a22219d
-plot(mdc2)
+begin
+	plot(mdc2; idxs=[1,2,3], pnames = first.(θs), what = :trajectory)
+	plot!(mdc; idxs=[1,2,3], pnames = first.(θs), what = :trajectory)
+end
 
 # ╔═╡ 8c7ae698-b517-4978-a109-188be87ee90d
 begin
-	@show cost(mdc2(-9.)[:states])
-	@show cost2(mdc2(9.)[:states])
-	@show summed_cost(mdc2(-9.)[:states]);
+	summed_cost(mdc2(99.)[:states])
+# 	@show cost2(mdc2(9.)[:states])
+# 	@show summed_cost(mdc2(9.)[:states]);
 end
+
+# ╔═╡ dd76e380-f5eb-4d6c-8fb8-64f7d2ccf919
+begin
+	pp = mdc2(99.)[:states]
+	mprob = remake(prob2, p = pp)
+	msol = solve(mprob, Tsit5(), saveat=nom_sol2.t)
+	plot(msol)
+	plot!(nom_sol2)
+end
+
+# ╔═╡ 8b969cf4-a258-4de8-b461-25728d7a4c03
+function ccc(s)
+	rr = mdc(s)[:states] |> summed_cost
+	rr2 = mdc2(s)[:states] |> summed_cost
+	return [rr, rr2]
+end
+
+# ╔═╡ 76a74654-70b9-4304-baa1-6312ef6ca34b
+ccc(90.)
+
+# ╔═╡ bd0a17e0-81ba-497e-9d6e-dad8e191eb8d
+m = map(1:150) do i
+ccc(i)[2]
+end
+
+# ╔═╡ 6ed541ef-ce09-4ec6-b58b-292638bacaee
+plot(m)
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
-DiffEqParamEstim = "1130ab10-4a5a-5621-a13d-e4788d82bd4c"
-DiffEqSensitivity = "41bf760c-e81c-5289-8e54-58b1f1f8abe2"
-FiniteDiff = "6a86dc24-6348-571c-b903-95158fe2bd41"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 Latexify = "23fbe1c1-3f47-55db-b15f-69d7ec21a316"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
@@ -370,9 +427,6 @@ Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 
 [compat]
-DiffEqParamEstim = "~1.23.0"
-DiffEqSensitivity = "~6.70.0"
-FiniteDiff = "~2.11.0"
 ForwardDiff = "~0.10.25"
 Latexify = "~0.15.12"
 MinimallyDisruptiveCurves = "~0.3.0"
@@ -388,12 +442,6 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.7.0"
 manifest_format = "2.0"
-
-[[deps.AbstractFFTs]]
-deps = ["ChainRulesCore", "LinearAlgebra"]
-git-tree-sha1 = "6f1d9bc1c08f9f4a8fa92e3ea3cb50153a1b40d4"
-uuid = "621f4979-c628-5d54-868e-fcf4e3e8185c"
-version = "1.1.0"
 
 [[deps.AbstractPlutoDingetjes]]
 deps = ["Pkg"]
@@ -432,26 +480,8 @@ git-tree-sha1 = "1ee88c4c76caa995a885dc2f22a5d548dfbbc0ba"
 uuid = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
 version = "3.2.2"
 
-[[deps.ArrayLayouts]]
-deps = ["FillArrays", "LinearAlgebra", "SparseArrays"]
-git-tree-sha1 = "56c347caf09ad8acb3e261fe75f8e09652b7b05b"
-uuid = "4c555306-a7a7-4459-81d9-ec55ddd5c99a"
-version = "0.7.10"
-
 [[deps.Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
-
-[[deps.AxisAlgorithms]]
-deps = ["LinearAlgebra", "Random", "SparseArrays", "WoodburyMatrices"]
-git-tree-sha1 = "66771c8d21c8ff5e3a93379480a2307ac36863f7"
-uuid = "13072b0f-2c55-5437-9ae7-d433b7a33950"
-version = "1.0.1"
-
-[[deps.BandedMatrices]]
-deps = ["ArrayLayouts", "FillArrays", "LinearAlgebra", "Random", "SparseArrays"]
-git-tree-sha1 = "ce68f8c2162062733f9b4c9e3700d5efc4a8ec47"
-uuid = "aae01518-5342-5314-be14-df237901396f"
-version = "0.16.11"
 
 [[deps.BangBang]]
 deps = ["Compat", "ConstructionBase", "Future", "InitialValues", "LinearAlgebra", "Requires", "Setfield", "Tables", "ZygoteRules"]
@@ -478,28 +508,11 @@ git-tree-sha1 = "28bbdbf0354959db89358d1d79d421ff31ef0b5e"
 uuid = "62783981-4cbd-42fc-bca8-16325de8dc4b"
 version = "0.1.3"
 
-[[deps.BlockArrays]]
-deps = ["ArrayLayouts", "FillArrays", "LinearAlgebra"]
-git-tree-sha1 = "21490270d1fcf2efa9ddb2126d6958e9b72a4db0"
-uuid = "8e7c35d0-a365-5155-bbbb-fb81a777f24e"
-version = "0.16.11"
-
-[[deps.BlockBandedMatrices]]
-deps = ["ArrayLayouts", "BandedMatrices", "BlockArrays", "FillArrays", "LinearAlgebra", "MatrixFactorizations", "SparseArrays", "Statistics"]
-git-tree-sha1 = "b1db5b5daca19070297580e1c5b5095e7ada6792"
-uuid = "ffab5731-97b5-5995-9138-79e8c1846df0"
-version = "0.11.1"
-
 [[deps.Bzip2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "19a35467a82e236ff51bc17a3a44b69ef35185a2"
 uuid = "6e34b625-4abd-537c-b88f-471c36dfa7a0"
 version = "1.0.8+0"
-
-[[deps.CEnum]]
-git-tree-sha1 = "215a9aa4a1f23fbd05b92769fdd62559488d70e9"
-uuid = "fa961155-64e5-5f13-b03f-caf6b980ea82"
-version = "0.4.1"
 
 [[deps.CPUSummary]]
 deps = ["Hwloc", "IfElse", "Preferences", "Static"]
@@ -524,17 +537,6 @@ deps = ["LinearAlgebra"]
 git-tree-sha1 = "f641eb0a4f00c343bbc32346e1217b86f3ce9dad"
 uuid = "49dc2e85-a5d0-5ad3-a950-438e2897f1b9"
 version = "0.5.1"
-
-[[deps.Cassette]]
-git-tree-sha1 = "6ce3cd755d4130d43bab24ea5181e77b89b51839"
-uuid = "7057c7e9-c182-5462-911a-8362d720325c"
-version = "0.3.9"
-
-[[deps.ChainRules]]
-deps = ["ChainRulesCore", "Compat", "IrrationalConstants", "LinearAlgebra", "Random", "RealDot", "SparseArrays", "Statistics"]
-git-tree-sha1 = "098b5eeb1170f569a45f363066b0e405868fc210"
-uuid = "082447d4-558c-5d27-93f4-14fc19e9eca2"
-version = "1.27.0"
 
 [[deps.ChainRulesCore]]
 deps = ["Compat", "LinearAlgebra", "SparseArrays"]
@@ -672,18 +674,6 @@ git-tree-sha1 = "80c3e8639e3353e5d2912fb3a1916b8455e2494b"
 uuid = "b429d917-457f-4dbc-8f4c-0cc954292b1d"
 version = "0.4.0"
 
-[[deps.Dierckx]]
-deps = ["Dierckx_jll"]
-git-tree-sha1 = "633c119fcfddf61fb4c75d77ce3ebab552a44723"
-uuid = "39dd38d3-220a-591b-8e3c-4c3a8c710a94"
-version = "0.5.2"
-
-[[deps.Dierckx_jll]]
-deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "6596b96fe1caff3db36415eeb6e9d3b50bfe40ee"
-uuid = "cd4c43a9-7502-52ba-aa6d-59fb2a88580b"
-version = "0.1.0+0"
-
 [[deps.DiffEqBase]]
 deps = ["ArrayInterface", "ChainRulesCore", "DEDataArrays", "DataStructures", "Distributions", "DocStringExtensions", "FastBroadcast", "ForwardDiff", "FunctionWrappers", "IterativeSolvers", "LabelledArrays", "LinearAlgebra", "Logging", "MuladdMacro", "NonlinearSolve", "Parameters", "PreallocationTools", "Printf", "RecursiveArrayTools", "RecursiveFactorization", "Reexport", "Requires", "SciMLBase", "Setfield", "SparseArrays", "StaticArrays", "Statistics", "SuiteSparse", "ZygoteRules"]
 git-tree-sha1 = "0dee26eff5f7a4ab0381f43281c9734354ddc93d"
@@ -701,30 +691,6 @@ deps = ["ArrayInterface", "Compat", "DataStructures", "DiffEqBase", "FunctionWra
 git-tree-sha1 = "9f47b8ae1c6f2b172579ac50397f8314b460fcd9"
 uuid = "c894b116-72e5-5b58-be3c-e6d8d4ac2b12"
 version = "7.3.1"
-
-[[deps.DiffEqNoiseProcess]]
-deps = ["DiffEqBase", "Distributions", "LinearAlgebra", "Optim", "PoissonRandom", "QuadGK", "Random", "Random123", "RandomNumbers", "RecipesBase", "RecursiveArrayTools", "Requires", "ResettableStacks", "SciMLBase", "StaticArrays", "Statistics"]
-git-tree-sha1 = "d6839a44a268c69ef0ed927b22a6f43c8a4c2e73"
-uuid = "77a26b50-5914-5dd7-bc55-306e6241c503"
-version = "5.9.0"
-
-[[deps.DiffEqOperators]]
-deps = ["BandedMatrices", "BlockBandedMatrices", "DiffEqBase", "DomainSets", "ForwardDiff", "LazyArrays", "LazyBandedMatrices", "LinearAlgebra", "LoopVectorization", "NNlib", "NonlinearSolve", "Requires", "RuntimeGeneratedFunctions", "SciMLBase", "SparseArrays", "SparseDiffTools", "StaticArrays", "SuiteSparse"]
-git-tree-sha1 = "ef58ccdd4834d54826708982d5477e793a4a2f6f"
-uuid = "9fdde737-9c7f-55bf-ade8-46b3f136cc48"
-version = "4.41.0"
-
-[[deps.DiffEqParamEstim]]
-deps = ["Calculus", "Dierckx", "DiffEqBase", "DiffEqSensitivity", "Distributions", "ForwardDiff", "LinearAlgebra", "LsqFit", "PenaltyFunctions", "PreallocationTools", "RecursiveArrayTools", "SciMLBase"]
-git-tree-sha1 = "f970914d1366679bdf56bcc41575e3d1599aeb37"
-uuid = "1130ab10-4a5a-5621-a13d-e4788d82bd4c"
-version = "1.23.0"
-
-[[deps.DiffEqSensitivity]]
-deps = ["Adapt", "ArrayInterface", "Cassette", "ChainRulesCore", "DiffEqBase", "DiffEqCallbacks", "DiffEqNoiseProcess", "DiffEqOperators", "DiffRules", "Distributions", "Enzyme", "FFTW", "FiniteDiff", "ForwardDiff", "GlobalSensitivity", "LinearAlgebra", "LinearSolve", "OrdinaryDiffEq", "Parameters", "QuadGK", "QuasiMonteCarlo", "Random", "RandomNumbers", "RecursiveArrayTools", "Reexport", "Requires", "ReverseDiff", "SciMLBase", "SharedArrays", "Statistics", "StochasticDiffEq", "Tracker", "Zygote", "ZygoteRules"]
-git-tree-sha1 = "12bf5b525f6ff1892451ea14d05627207059a8d7"
-uuid = "41bf760c-e81c-5289-8e54-58b1f1f8abe2"
-version = "6.70.0"
 
 [[deps.DiffResults]]
 deps = ["StaticArrays"]
@@ -794,18 +760,6 @@ git-tree-sha1 = "d7ab55febfd0907b285fbf8dc0c73c0825d9d6aa"
 uuid = "da5c29d0-fa7d-589e-88eb-ea29b0a81949"
 version = "1.3.0"
 
-[[deps.Enzyme]]
-deps = ["Adapt", "CEnum", "Enzyme_jll", "GPUCompiler", "LLVM", "Libdl", "ObjectFile", "Test"]
-git-tree-sha1 = "c7b2d2602edf60ac75f65c99d65ab0ea610e71f5"
-uuid = "7da242da-08ed-463a-9acd-ee780be4f1d9"
-version = "0.8.5"
-
-[[deps.Enzyme_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "80a854ec5f97162bbae8e21b18c5e09d19b2fe98"
-uuid = "7cc45869-7501-5eee-bdea-0790c847d4ef"
-version = "0.0.25+0"
-
 [[deps.Expat_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "ae13fcbc7ab8f16b0856729b050ef0c446aa3492"
@@ -834,18 +788,6 @@ deps = ["Artifacts", "Bzip2_jll", "FreeType2_jll", "FriBidi_jll", "JLLWrappers",
 git-tree-sha1 = "d8a578692e3077ac998b50c0217dfd67f21d1e5f"
 uuid = "b22a6f82-2f65-5046-a5b2-351ab43fb4e5"
 version = "4.4.0+0"
-
-[[deps.FFTW]]
-deps = ["AbstractFFTs", "FFTW_jll", "LinearAlgebra", "MKL_jll", "Preferences", "Reexport"]
-git-tree-sha1 = "505876577b5481e50d089c1c68899dfb6faebc62"
-uuid = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
-version = "1.4.6"
-
-[[deps.FFTW_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "c6033cc3892d0ef5bb9cd29b7f2f0331ea5184ea"
-uuid = "f5851436-0d7a-5f13-b9de-f02708fd171a"
-version = "3.3.10+0"
 
 [[deps.FastBroadcast]]
 deps = ["LinearAlgebra", "Polyester", "Static"]
@@ -921,12 +863,6 @@ git-tree-sha1 = "51d2dfe8e590fbd74e7a842cf6d13d8a2f45dc01"
 uuid = "0656b61e-2033-5cc2-a64a-77c0f6c09b89"
 version = "3.3.6+0"
 
-[[deps.GPUCompiler]]
-deps = ["ExprTools", "InteractiveUtils", "LLVM", "Libdl", "Logging", "TimerOutputs", "UUIDs"]
-git-tree-sha1 = "647a54f196b5ffb7c3bc2fec5c9a57fa273354cc"
-uuid = "61eb1bfa-7361-4325-ad38-22787b887f55"
-version = "0.13.14"
-
 [[deps.GR]]
 deps = ["Base64", "DelimitedFiles", "GR_jll", "HTTP", "JSON", "Libdl", "LinearAlgebra", "Pkg", "Printf", "Random", "RelocatableFolders", "Serialization", "Sockets", "Test", "UUIDs"]
 git-tree-sha1 = "9f836fb62492f4b0f0d3b06f55983f2704ed0883"
@@ -956,12 +892,6 @@ deps = ["Artifacts", "Gettext_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Libic
 git-tree-sha1 = "a32d672ac2c967f3deb8a81d828afc739c838a06"
 uuid = "7746bdde-850d-59dc-9ae8-88ece973131d"
 version = "2.68.3+2"
-
-[[deps.GlobalSensitivity]]
-deps = ["Distributions", "FFTW", "ForwardDiff", "KernelDensity", "LinearAlgebra", "Parameters", "QuasiMonteCarlo", "Random", "RecursiveArrayTools", "Statistics", "StatsBase", "Trapz"]
-git-tree-sha1 = "f7255ac54f458dd26d718ed832d48fd80bfd5305"
-uuid = "af5da776-676b-467e-8baf-acd8249e4f0f"
-version = "1.3.1"
 
 [[deps.Graphite2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1033,12 +963,6 @@ git-tree-sha1 = "f7be53659ab06ddc986428d3a9dcc95f6fa6705a"
 uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
 version = "0.2.2"
 
-[[deps.IRTools]]
-deps = ["InteractiveUtils", "MacroTools", "Test"]
-git-tree-sha1 = "7f43342f8d5fd30ead0ba1b49ab1a3af3b787d24"
-uuid = "7869d1d1-7146-5819-86e3-90919afe41df"
-version = "0.4.5"
-
 [[deps.IfElse]]
 git-tree-sha1 = "debdd00ffef04665ccbb3e150747a77560e8fad1"
 uuid = "615f187c-cbe4-4ef1-ba3b-2fcf58d6d173"
@@ -1059,21 +983,9 @@ git-tree-sha1 = "4da0f88e9a39111c2fa3add390ab15f3a44f3ca3"
 uuid = "22cec73e-a1b8-11e9-2c92-598750a2cf9c"
 version = "0.3.1"
 
-[[deps.IntelOpenMP_jll]]
-deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "d979e54b71da82f3a65b62553da4fc3d18c9004c"
-uuid = "1d5cc7b8-4909-519e-a0f8-d0f5ad9712d0"
-version = "2018.0.3+2"
-
 [[deps.InteractiveUtils]]
 deps = ["Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
-
-[[deps.Interpolations]]
-deps = ["AxisAlgorithms", "ChainRulesCore", "LinearAlgebra", "OffsetArrays", "Random", "Ratios", "Requires", "SharedArrays", "SparseArrays", "StaticArrays", "WoodburyMatrices"]
-git-tree-sha1 = "b15fc0a95c564ca2e0a7ae12c1f095ca848ceb31"
-uuid = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
-version = "0.13.5"
 
 [[deps.IntervalSets]]
 deps = ["Dates", "EllipsisNotation", "Statistics"]
@@ -1132,30 +1044,6 @@ git-tree-sha1 = "e7092df00019dab7ab81154df576c975fa6e47a3"
 uuid = "98e50ef6-434e-11e9-1051-2b60c6c9e899"
 version = "0.18.1"
 
-[[deps.KLU]]
-deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
-git-tree-sha1 = "cae5e3dfd89b209e01bcd65b3a25e74462c67ee0"
-uuid = "ef3ab10e-7fda-4108-b977-705223b18434"
-version = "0.3.0"
-
-[[deps.KernelDensity]]
-deps = ["Distributions", "DocStringExtensions", "FFTW", "Interpolations", "StatsBase"]
-git-tree-sha1 = "591e8dc09ad18386189610acafb970032c519707"
-uuid = "5ab0869b-81aa-558d-bb23-cbf5423bbe9b"
-version = "0.6.3"
-
-[[deps.Krylov]]
-deps = ["LinearAlgebra", "Printf", "SparseArrays"]
-git-tree-sha1 = "a024280a69c49f51ba29d2deb66f07508f0b9b49"
-uuid = "ba0b0d4f-ebba-5204-a429-3ac8c609bfb7"
-version = "0.7.13"
-
-[[deps.KrylovKit]]
-deps = ["LinearAlgebra", "Printf"]
-git-tree-sha1 = "0328ad9966ae29ccefb4e1b9bfd8c8867e4360df"
-uuid = "0b1a1467-8014-51b9-945f-bf0ae24f4b77"
-version = "0.5.3"
-
 [[deps.LAME_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "f6250b16881adf048549549fba48b1161acdac8c"
@@ -1167,18 +1055,6 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "bf36f528eec6634efc60d7ec062008f171071434"
 uuid = "88015f11-f218-50d7-93a8-a6af411a945d"
 version = "3.0.0+1"
-
-[[deps.LLVM]]
-deps = ["CEnum", "LLVMExtra_jll", "Libdl", "Printf", "Unicode"]
-git-tree-sha1 = "302e6cfb8d83ba7a9658d7d51725620fa9db8702"
-uuid = "929cbde3-209d-540e-8aea-75f648917ca0"
-version = "4.9.0"
-
-[[deps.LLVMExtra_jll]]
-deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "Pkg"]
-git-tree-sha1 = "5558ad3c8972d602451efe9d81c78ec14ef4f5ef"
-uuid = "dad2f222-ce93-54a1-a47d-0025e8a3acab"
-version = "0.0.14+2"
 
 [[deps.LZO_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1203,44 +1079,11 @@ git-tree-sha1 = "a6552bfeab40de157a297d84e03ade4b8177677f"
 uuid = "23fbe1c1-3f47-55db-b15f-69d7ec21a316"
 version = "0.15.12"
 
-[[deps.LatinHypercubeSampling]]
-deps = ["Random", "StableRNGs", "StatsBase", "Test"]
-git-tree-sha1 = "42938ab65e9ed3c3029a8d2c58382ca75bdab243"
-uuid = "a5e1c1ea-c99a-51d3-a14d-a9a37257b02d"
-version = "1.8.0"
-
-[[deps.LatticeRules]]
-deps = ["Random"]
-git-tree-sha1 = "7f5b02258a3ca0221a6a9710b0a0a2e8fb4957fe"
-uuid = "73f95e8e-ec14-4e6a-8b18-0d2e271c4e55"
-version = "0.0.1"
-
 [[deps.LayoutPointers]]
 deps = ["ArrayInterface", "LinearAlgebra", "ManualMemory", "SIMDTypes", "Static"]
 git-tree-sha1 = "b651f573812d6c36c22c944dd66ef3ab2283dfa1"
 uuid = "10f19ff3-798f-405d-979b-55457f8fc047"
 version = "0.1.6"
-
-[[deps.LazyArrays]]
-deps = ["ArrayLayouts", "FillArrays", "LinearAlgebra", "MacroTools", "MatrixFactorizations", "SparseArrays", "StaticArrays"]
-git-tree-sha1 = "e20371e416fd9e7cac1963b024b2243d3d36c03a"
-uuid = "5078a376-72f3-5289-bfd5-ec5146d43c02"
-version = "0.22.5"
-
-[[deps.LazyArtifacts]]
-deps = ["Artifacts", "Pkg"]
-uuid = "4af54fe1-eca0-43a8-85a7-787d91b784e3"
-
-[[deps.LazyBandedMatrices]]
-deps = ["ArrayLayouts", "BandedMatrices", "BlockArrays", "BlockBandedMatrices", "FillArrays", "LazyArrays", "LinearAlgebra", "MatrixFactorizations", "SparseArrays", "StaticArrays"]
-git-tree-sha1 = "8f4c427f6b505294dfefd343c8373b8c74e09973"
-uuid = "d7e5e226-e90b-4449-9968-0f923699bf6f"
-version = "0.7.6"
-
-[[deps.LearnBase]]
-git-tree-sha1 = "a0d90569edd490b82fdc4dc078ea54a5a800d30a"
-uuid = "7f8f8fb0-2700-5f03-b4bd-41f8cfc144b6"
-version = "0.4.1"
 
 [[deps.LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]
@@ -1325,12 +1168,6 @@ version = "7.1.1"
 deps = ["Libdl", "libblastrampoline_jll"]
 uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 
-[[deps.LinearSolve]]
-deps = ["ArrayInterface", "DocStringExtensions", "IterativeSolvers", "KLU", "Krylov", "KrylovKit", "LinearAlgebra", "RecursiveFactorization", "Reexport", "Requires", "SciMLBase", "Setfield", "SparseArrays", "SuiteSparse", "UnPack"]
-git-tree-sha1 = "a25bc80647e44d0e1e1694b47000603497700b18"
-uuid = "7ed4a6bd-45f5-4d41-b270-4a48e9bafcae"
-version = "1.13.0"
-
 [[deps.LogExpFunctions]]
 deps = ["ChainRulesCore", "ChangesOfVariables", "DocStringExtensions", "InverseFunctions", "IrrationalConstants", "LinearAlgebra"]
 git-tree-sha1 = "e5718a00af0ab9756305a0392832c8952c7426c1"
@@ -1346,18 +1183,6 @@ git-tree-sha1 = "67c0dfeae307972b50009ce220aae5684ea852d1"
 uuid = "bdcacae8-1622-11e9-2a5c-532679323890"
 version = "0.12.101"
 
-[[deps.LsqFit]]
-deps = ["Distributions", "ForwardDiff", "LinearAlgebra", "NLSolversBase", "OptimBase", "Random", "StatsBase"]
-git-tree-sha1 = "91aa1442e63a77f101aff01dec5a821a17f43922"
-uuid = "2fda8390-95c7-5789-9bda-21331edee243"
-version = "0.12.1"
-
-[[deps.MKL_jll]]
-deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "Pkg"]
-git-tree-sha1 = "e595b205efd49508358f7dc670a940c790204629"
-uuid = "856f044c-d86e-5d09-b602-aeab76dc8ba7"
-version = "2022.0.0+0"
-
 [[deps.MacroTools]]
 deps = ["Markdown", "Random"]
 git-tree-sha1 = "3d3e902b31198a27340d0bf00d6ac452866021cf"
@@ -1372,12 +1197,6 @@ version = "0.1.8"
 [[deps.Markdown]]
 deps = ["Base64"]
 uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
-
-[[deps.MatrixFactorizations]]
-deps = ["ArrayLayouts", "LinearAlgebra", "Printf", "Random"]
-git-tree-sha1 = "1a0358d0283b84c3ccf9537843e3583c3b896c59"
-uuid = "a3b82374-2e81-5b9e-98ce-41277c0e4c87"
-version = "0.8.5"
 
 [[deps.MbedTLS]]
 deps = ["Dates", "MbedTLS_jll", "Random", "Sockets"]
@@ -1453,12 +1272,6 @@ git-tree-sha1 = "019f12e9a1a7880459d0173c182e6a99365d7ac1"
 uuid = "2774e3e8-f4cf-5e23-947b-6d7e65073b56"
 version = "4.5.1"
 
-[[deps.NNlib]]
-deps = ["Adapt", "ChainRulesCore", "Compat", "LinearAlgebra", "Pkg", "Requires", "Statistics"]
-git-tree-sha1 = "996a3dca9893cb0741bbd08e48b2e2aa0d551898"
-uuid = "872c559c-99b0-510c-b3b7-b6c96a88d5cd"
-version = "0.8.2"
-
 [[deps.NaNMath]]
 git-tree-sha1 = "b086b7ea07f8e38cf122f5016af580881ac914fe"
 uuid = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
@@ -1472,12 +1285,6 @@ deps = ["ArrayInterface", "FiniteDiff", "ForwardDiff", "IterativeSolvers", "Line
 git-tree-sha1 = "4e5ee038e5655c8aaa9ac179743c5227d1f0f0f3"
 uuid = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 version = "0.3.15"
-
-[[deps.ObjectFile]]
-deps = ["Reexport", "StructIO"]
-git-tree-sha1 = "55ce61d43409b1fb0279d1781bf3b0f22c83ab3b"
-uuid = "d8793406-e978-5875-9003-1fc021f44a92"
-version = "0.3.7"
 
 [[deps.OffsetArrays]]
 deps = ["Adapt"]
@@ -1510,18 +1317,6 @@ deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Pk
 git-tree-sha1 = "13652491f6856acfd2db29360e1bbcd4565d04f1"
 uuid = "efe28fd5-8261-553b-a9e1-b2916fc3738e"
 version = "0.5.5+0"
-
-[[deps.Optim]]
-deps = ["Compat", "FillArrays", "ForwardDiff", "LineSearches", "LinearAlgebra", "NLSolversBase", "NaNMath", "Parameters", "PositiveFactorizations", "Printf", "SparseArrays", "StatsBase"]
-git-tree-sha1 = "bc0a748740e8bc5eeb9ea6031e6f050de1fc0ba2"
-uuid = "429524aa-4258-5aef-a3af-852621145aeb"
-version = "1.6.2"
-
-[[deps.OptimBase]]
-deps = ["NLSolversBase", "Printf", "Reexport"]
-git-tree-sha1 = "9cb1fee807b599b5f803809e85c81b582d2009d6"
-uuid = "87e2bd06-a317-5318-96d9-3ecbac512eee"
-version = "2.0.2"
 
 [[deps.Opus_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1563,12 +1358,6 @@ deps = ["Dates"]
 git-tree-sha1 = "13468f237353112a01b2d6b32f3d0f80219944aa"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
 version = "2.2.2"
-
-[[deps.PenaltyFunctions]]
-deps = ["InteractiveUtils", "LearnBase", "LinearAlgebra", "RecipesBase"]
-git-tree-sha1 = "527c6a8d602f3160957d80696ab792f6e690f231"
-uuid = "06bb1623-fdd5-5ca2-a01c-88eae3ea319e"
-version = "0.2.1"
 
 [[deps.Pixman_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1622,12 +1411,6 @@ git-tree-sha1 = "7e597df97e46ffb1c8adbaddfa56908a7a20194b"
 uuid = "1d0040c9-8b98-4ee7-8388-3f51789ca0ad"
 version = "0.1.5"
 
-[[deps.PositiveFactorizations]]
-deps = ["LinearAlgebra"]
-git-tree-sha1 = "17275485f373e6673f7e7f97051f703ed5b15b20"
-uuid = "85a6dd25-e78a-55b7-8502-1745935b8125"
-version = "0.2.4"
-
 [[deps.PreallocationTools]]
 deps = ["Adapt", "ArrayInterface", "ForwardDiff", "LabelledArrays"]
 git-tree-sha1 = "6c138c8510111fa47b5d2ed8ada482d97e279bee"
@@ -1656,12 +1439,6 @@ git-tree-sha1 = "78aadffb3efd2155af139781b8a8df1ef279ea39"
 uuid = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
 version = "2.4.2"
 
-[[deps.QuasiMonteCarlo]]
-deps = ["Distributions", "LatinHypercubeSampling", "LatticeRules", "Sobol"]
-git-tree-sha1 = "bc69c718a83951dcb999404ff267a7b8c39c1c63"
-uuid = "8a4e6c94-4038-4cdc-81c3-7e6ffdb2a71b"
-version = "0.2.4"
-
 [[deps.REPL]]
 deps = ["InteractiveUtils", "Markdown", "Sockets", "Unicode"]
 uuid = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
@@ -1670,29 +1447,11 @@ uuid = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 deps = ["SHA", "Serialization"]
 uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
-[[deps.Random123]]
-deps = ["Random", "RandomNumbers"]
-git-tree-sha1 = "afeacaecf4ed1649555a19cb2cad3c141bbc9474"
-uuid = "74087812-796a-5b5d-8853-05524746bad3"
-version = "1.5.0"
-
 [[deps.RandomNumbers]]
 deps = ["Random", "Requires"]
 git-tree-sha1 = "043da614cc7e95c703498a491e2c21f58a2b8111"
 uuid = "e6cf234a-135c-5ec9-84dd-332b85af5143"
 version = "1.5.3"
-
-[[deps.Ratios]]
-deps = ["Requires"]
-git-tree-sha1 = "dc84268fe0e3335a62e315a3a7cf2afa7178a734"
-uuid = "c84ed2f1-dad5-54f0-aa8e-dbefe2724439"
-version = "0.4.3"
-
-[[deps.RealDot]]
-deps = ["LinearAlgebra"]
-git-tree-sha1 = "9f0a1b71baaf7650f4fa8a1d168c7fb6ee41f0c9"
-uuid = "c1ae055f-0cd5-4b69-90a6-9a35b1a98df9"
-version = "0.1.0"
 
 [[deps.RecipesBase]]
 git-tree-sha1 = "6bf3f380ff52ce0832ddd3a2a7b9538ed1bcca7d"
@@ -1739,18 +1498,6 @@ deps = ["UUIDs"]
 git-tree-sha1 = "838a3a4188e2ded87a4f9f184b4b0d78a1e91cb7"
 uuid = "ae029012-a4dd-5104-9daa-d747884805df"
 version = "1.3.0"
-
-[[deps.ResettableStacks]]
-deps = ["StaticArrays"]
-git-tree-sha1 = "256eeeec186fa7f26f2801732774ccf277f05db9"
-uuid = "ae5879a3-cd67-5da8-be7f-38c6eb64a37b"
-version = "1.1.1"
-
-[[deps.ReverseDiff]]
-deps = ["ChainRulesCore", "DiffResults", "DiffRules", "ForwardDiff", "FunctionWrappers", "LinearAlgebra", "LogExpFunctions", "MacroTools", "NaNMath", "Random", "SpecialFunctions", "StaticArrays", "Statistics"]
-git-tree-sha1 = "8d85c98fc33d4d37d88c8f9ccee4f1f3f98e56f4"
-uuid = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
-version = "1.12.0"
 
 [[deps.Rmath]]
 deps = ["Random", "Rmath_jll"]
@@ -1833,12 +1580,6 @@ git-tree-sha1 = "5d7e3f4e11935503d3ecaf7186eac40602e7d231"
 uuid = "699a6c99-e7fa-54fc-8d76-47d257e15c1d"
 version = "0.9.4"
 
-[[deps.Sobol]]
-deps = ["DelimitedFiles", "Random"]
-git-tree-sha1 = "5a74ac22a9daef23705f010f72c81d6925b19df8"
-uuid = "ed01d8cd-4d21-5b2a-85b4-cc3bdc58bad4"
-version = "1.5.0"
-
 [[deps.Sockets]]
 uuid = "6462fe0b-24de-5631-8697-dd941f90decc"
 
@@ -1869,12 +1610,6 @@ deps = ["Setfield", "Test"]
 git-tree-sha1 = "39c9f91521de844bad65049efd4f9223e7ed43f9"
 uuid = "171d559e-b47b-412a-8079-5efa626c420e"
 version = "0.1.14"
-
-[[deps.StableRNGs]]
-deps = ["Random", "Test"]
-git-tree-sha1 = "3be7d49667040add7ee151fefaf1f8c04c8c8276"
-uuid = "860ef19b-820b-49d6-a774-d7a799459cd3"
-version = "1.0.0"
 
 [[deps.Static]]
 deps = ["IfElse"]
@@ -1916,12 +1651,6 @@ git-tree-sha1 = "3e057e1f9f12d18cac32011aed9e61eef6c1c0ce"
 uuid = "9672c7b4-1e72-59bd-8a11-6ac3964bc41f"
 version = "1.6.6"
 
-[[deps.StochasticDiffEq]]
-deps = ["Adapt", "ArrayInterface", "DataStructures", "DiffEqBase", "DiffEqJump", "DiffEqNoiseProcess", "DocStringExtensions", "FillArrays", "FiniteDiff", "ForwardDiff", "LinearAlgebra", "Logging", "MuladdMacro", "NLsolve", "OrdinaryDiffEq", "Random", "RandomNumbers", "RecursiveArrayTools", "Reexport", "SparseArrays", "SparseDiffTools", "StaticArrays", "UnPack"]
-git-tree-sha1 = "dd2043c1d182e11abf1b33e699dc3856e4663a54"
-uuid = "789caeaf-c7a9-5a7d-9973-96adeb23e2a0"
-version = "6.42.0"
-
 [[deps.StrideArraysCore]]
 deps = ["ArrayInterface", "CloseOpenIntervals", "IfElse", "LayoutPointers", "ManualMemory", "Requires", "SIMDTypes", "Static", "ThreadingUtilities"]
 git-tree-sha1 = "49d616ef230fec080d02ada0ca5639e652cca06b"
@@ -1934,19 +1663,9 @@ git-tree-sha1 = "57617b34fa34f91d536eb265df67c2d4519b8b98"
 uuid = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
 version = "0.6.5"
 
-[[deps.StructIO]]
-deps = ["Test"]
-git-tree-sha1 = "010dc73c7146869c042b49adcdb6bf528c12e859"
-uuid = "53d494c1-5632-5724-8f4c-31dff12d585f"
-version = "0.3.0"
-
 [[deps.SuiteSparse]]
 deps = ["Libdl", "LinearAlgebra", "Serialization", "SparseArrays"]
 uuid = "4607b0f0-06f3-5cda-b6b1-a6196a1729e9"
-
-[[deps.SuiteSparse_jll]]
-deps = ["Artifacts", "Libdl", "Pkg", "libblastrampoline_jll"]
-uuid = "bea87d4a-7f5b-5778-9afe-8cc45184846c"
 
 [[deps.SymbolicUtils]]
 deps = ["AbstractTrees", "Bijections", "ChainRulesCore", "Combinatorics", "ConstructionBase", "DataStructures", "DocStringExtensions", "DynamicPolynomials", "IfElse", "LabelledArrays", "LinearAlgebra", "MultivariatePolynomials", "NaNMath", "Setfield", "SparseArrays", "SpecialFunctions", "StaticArrays", "TermInterface", "TimerOutputs"]
@@ -2012,22 +1731,11 @@ git-tree-sha1 = "0952c9cee34988092d73a5708780b3917166a0dd"
 uuid = "0796e94c-ce3b-5d07-9a54-7f471281c624"
 version = "0.5.21"
 
-[[deps.Tracker]]
-deps = ["Adapt", "DiffRules", "ForwardDiff", "LinearAlgebra", "LogExpFunctions", "MacroTools", "NNlib", "NaNMath", "Printf", "Random", "Requires", "SpecialFunctions", "Statistics"]
-git-tree-sha1 = "0874c1b5de1b5529b776cfeca3ec0acfada97b1b"
-uuid = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
-version = "0.2.20"
-
 [[deps.Transducers]]
 deps = ["Adapt", "ArgCheck", "BangBang", "Baselet", "CompositionsBase", "DefineSingletons", "Distributed", "InitialValues", "Logging", "Markdown", "MicroCollections", "Requires", "Setfield", "SplittablesBase", "Tables"]
 git-tree-sha1 = "1cda71cc967e3ef78aa2593319f6c7379376f752"
 uuid = "28d57a85-8fef-5791-bfe6-a80928e7c999"
 version = "0.4.72"
-
-[[deps.Trapz]]
-git-tree-sha1 = "79eb0ed763084a3e7de81fe1838379ac6a23b6a0"
-uuid = "592b5752-818d-11e9-1e9a-2b8ca4a44cd1"
-version = "2.0.3"
 
 [[deps.TreeViews]]
 deps = ["Test"]
@@ -2098,12 +1806,6 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "4528479aa01ee1b3b4cd0e6faef0e04cf16466da"
 uuid = "2381bf8a-dfd0-557d-9999-79630e7b1b91"
 version = "1.25.0+0"
-
-[[deps.WoodburyMatrices]]
-deps = ["LinearAlgebra", "SparseArrays"]
-git-tree-sha1 = "de67fa59e33ad156a590055375a30b23c40299d3"
-uuid = "efce3f68-66dc-5838-9240-27a6d6f5f9b6"
-version = "0.5.5"
 
 [[deps.XML2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Libiconv_jll", "Pkg", "Zlib_jll"]
@@ -2253,12 +1955,6 @@ git-tree-sha1 = "e45044cd873ded54b6a5bac0eb5c971392cf1927"
 uuid = "3161d3a3-bdf6-5164-811a-617609db77b4"
 version = "1.5.2+0"
 
-[[deps.Zygote]]
-deps = ["AbstractFFTs", "ChainRules", "ChainRulesCore", "DiffRules", "Distributed", "FillArrays", "ForwardDiff", "IRTools", "InteractiveUtils", "LinearAlgebra", "MacroTools", "NaNMath", "Random", "Requires", "SparseArrays", "SpecialFunctions", "Statistics", "ZygoteRules"]
-git-tree-sha1 = "93285d2877f1f1b09b2a2b029f90e9db10127022"
-uuid = "e88e6eb3-aa80-5325-afca-941959d7151f"
-version = "0.6.35"
-
 [[deps.ZygoteRules]]
 deps = ["MacroTools"]
 git-tree-sha1 = "8c1a8e4dfacb1fd631745552c8db35d0deb09ea0"
@@ -2325,9 +2021,9 @@ version = "0.9.1+5"
 # ╟─e8175462-9bbf-11ec-3a58-0f114bb6cd58
 # ╟─e791cb5f-1d4e-4b4e-987d-fd280cdfb868
 # ╟─7ba2b752-c939-4e06-afa0-e0385b121282
-# ╠═e4c7b17f-0399-43c1-9f1a-4a49538280f5
+# ╟─e4c7b17f-0399-43c1-9f1a-4a49538280f5
 # ╟─14ead89c-7958-4320-98fb-a4ad6a2b29a2
-# ╠═6b3fb59a-69ab-4f26-85a4-44c9140c746b
+# ╟─6b3fb59a-69ab-4f26-85a4-44c9140c746b
 # ╠═e2c3c85f-3652-42de-8c3c-8df5290a6180
 # ╠═d393d540-b31c-4e01-a288-b665ef30726a
 # ╠═48d35dce-fbc7-4eea-9c9c-31dbc0a5bd71
@@ -2337,29 +2033,31 @@ version = "0.9.1+5"
 # ╠═c4154cc3-c543-4355-b343-a7ec79d03988
 # ╠═9858a01d-3bb7-4735-ae1c-de19c884b4fc
 # ╠═529aa903-dd50-4b84-ba9b-028d20135c04
-# ╠═178fa7fc-136b-4253-b2be-4724eda33101
+# ╟─5a4a31cc-5bdf-4610-bdc4-713735f8395b
 # ╠═8e3acf8c-f32c-422c-9a01-c7881a6d41a6
-# ╟─3487b9bb-3d56-4672-999d-61f5b217b8fb
+# ╟─638db2d2-cf26-46f8-a77e-36f76627263c
 # ╠═b13b68e7-9540-4bb2-b26e-d6efd86608a3
+# ╟─348a2244-9ef2-4d3c-8af6-5ab4c1ef427e
 # ╠═ac4833a0-194e-46f1-97af-7245e6a29f77
-# ╠═d0b4f6f5-7048-4579-af33-5aed1e161acc
+# ╟─d0b4f6f5-7048-4579-af33-5aed1e161acc
 # ╠═d7b29969-fbb5-4fca-a78e-b3dd4cc058e0
 # ╟─1ec6c301-b90c-4030-a853-7db1b1d8dabf
-# ╠═d2440064-c8c1-4627-99ab-b27f6b83c909
+# ╟─d2440064-c8c1-4627-99ab-b27f6b83c909
 # ╠═bc36827b-b968-41fc-8302-58a3663fbf3a
 # ╠═4430dcd3-474c-42c6-a4c9-9b41b45fd17a
-# ╠═2dfebbff-3d71-48e0-883b-020e13f38c14
+# ╟─2dfebbff-3d71-48e0-883b-020e13f38c14
 # ╠═332dec4f-c942-403a-b86e-d7829e6810ae
 # ╠═ae4b44cb-5ce0-49cc-9e4b-3067fd03afae
 # ╠═2ada1933-4cb2-43fc-8569-dc33a53340c0
 # ╠═a8dc1660-8977-4ad9-88e0-ba29d01eec0b
 # ╠═48f8da36-97f1-498f-b585-fe6a32f801cb
-# ╠═3e99fb45-cbac-4a4d-a608-ecc54605e410
+# ╟─3e99fb45-cbac-4a4d-a608-ecc54605e410
 # ╠═bc1fcf93-7877-433c-86d7-0e21d2925b51
 # ╠═865fe978-0f4e-4fca-b9e4-382032996f4b
 # ╠═806c8f47-d66d-4755-960a-0201e15cd940
 # ╟─d8bb862b-548b-4454-bc23-c2aaf5d5368e
 # ╠═29aa55b2-8d11-4bf0-afbe-8c381fcbc291
+# ╠═2de1b351-cd94-4554-80ca-50f2516d2be2
 # ╠═bc17b9c0-c837-4bb2-8191-963b00feb32e
 # ╠═6b672051-6192-443e-a2f7-e886a03b4861
 # ╠═7e7d2cb1-f58d-45ee-b650-0a62c0e70689
@@ -2370,5 +2068,10 @@ version = "0.9.1+5"
 # ╠═2540e729-9a04-45db-8570-ac2f310ac869
 # ╠═29c0211b-965f-4dc8-8310-5e618a22219d
 # ╠═8c7ae698-b517-4978-a109-188be87ee90d
+# ╠═dd76e380-f5eb-4d6c-8fb8-64f7d2ccf919
+# ╠═8b969cf4-a258-4de8-b461-25728d7a4c03
+# ╠═76a74654-70b9-4304-baa1-6312ef6ca34b
+# ╠═bd0a17e0-81ba-497e-9d6e-dad8e191eb8d
+# ╠═6ed541ef-ce09-4ec6-b58b-292638bacaee
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
