@@ -4,433 +4,326 @@
 using Markdown
 using InteractiveUtils
 
-# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
-macro bind(def, element)
-    quote
-        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
-        local el = $(esc(element))
-        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
-        el
-    end
-end
+# ╔═╡ 2e0481fb-fbe2-4247-a532-4d5e48577e1d
+using OrdinaryDiffEq, MinimallyDisruptiveCurves, Plots, DiffEqParamEstim, DiffEqSensitivity, LinearAlgebra, ModelingToolkit, Zygote, QuadGK, Dierckx, JuMP, Ipopt, Printf, PlutoUI
 
-# ╔═╡ 9bfd796b-35a6-4001-9ee8-ff283e713461
-using ModelingToolkit, Latexify, OrdinaryDiffEq, Plots, PlutoUI, ForwardDiff, LinearAlgebra, MinimallyDisruptiveCurves
-
-# ╔═╡ e8175462-9bbf-11ec-3a58-0f114bb6cd58
-md"""
-# Introductory example
-
-### Analysing a forced harmonic oscillator
-
-Here we are going to analyse to death a **really simple** example so you can explore the capabilities of MinimallyDisruptiveCurves.jl.
-
-Points that will be covered in this tutorial:
-
-- Build a barebones, differentiable cost function on the output of a differential equation (the oscillator).
-- Evolve a (two-sided) minimally disruptive curve using a cost function and an initial set of parameters.
-- Consider options and implications when choosing an initial direction of motion for the minimally disruptive curve.
-- Investigate curves that minimise disruption over multiple model conditions (through summation of cost functions)
-
-"""
-
-# ╔═╡ e791cb5f-1d4e-4b4e-987d-fd280cdfb868
-md"""
-### Background
-
-A harmonic oscillator is the simplest differential equation model on which we can demonstrate how to find a minimally disruptive curve. The differential equation is provided below:
-
-$$m\ddot{x}(t) + c \dot{x}(t) + kx(t) = F(t).$$
-
-Physically, this models a mass bouncing up and down on a spring, while being forced by an input $F(t)$. Here $[m,c,k]$ are the mass, damping-coefficient, and spring constant, respectively. $[x(t), \dot{x}(t), \ddot{x}(t)]$ are the position, velocity, and acceleration at time $t$.
-
-Let's first consider the case where $F(t) = 0$. So we have
-$$m\ddot{x}(t) + c \dot{x}(t) + kx(t) = 0.$$
-
-We can immediately see that the equation doesn't change if we divide through by $m$:
-
-$$\ddot{x}(t) + \frac{c}{m} \dot{x}(t) + \frac{k}{m}x(t) = 0.$$
-
-So for the no-input case, we can see that the model is **invariant** to changes that preserve $\frac{c}{m}$ and $\frac{k}{m}$. 
-
-Let's take $\theta$ as the vector of parameters $[m,c,k]$, and $\theta^*$ as a 'nominal' parameter vector. Evolving a minimally disruptive curve equates to generating a parameterised curve $\theta(s)$ that preserves $\frac{c}{m} = \frac{c^*}{m^*}$ and $\frac{k}{m} = \frac{k^*}{m^*}$, since any point on this curve represents a parameter set which gives identical model behaviour as $\theta^*$. 
-"""
-
-# ╔═╡ 7ba2b752-c939-4e06-afa0-e0385b121282
-md"""
-### Building the model
-It's below, built using ModelingToolkit.jl
-"""
-
-# ╔═╡ e4c7b17f-0399-43c1-9f1a-4a49538280f5
-md"""
-Mass $$m$$ is $(@bind mval Scrubbable(4.)) 
-
-Damping $$c$$ is $(@bind cval Scrubbable(1.)) 
-
-Spring constant $$k$$ is $(@bind kval Scrubbable(2.)) 
-
-End time is $(@bind tend Scrubbable(100))
-"""
-
-# ╔═╡ 14ead89c-7958-4320-98fb-a4ad6a2b29a2
-θ₀ = [kval, cval, mval];
-
-# ╔═╡ 6b3fb59a-69ab-4f26-85a4-44c9140c746b
-function MassSpringOscillator(input) 
-    @variables t
-    @parameters k, c, m
-    D = Differential(t)
-    @variables position(t) velocity(t)
-
-    eqs = [D(position) ~ velocity,
-        D(velocity) ~ (-1 / m) * (c * velocity + k * position - input(t))
-  ]
-
-    ps = [k,c,m] .=>  θ₀
-    ics = [position, velocity] .=> [1.,0.]
-    od = ODESystem(eqs, t, first.(ics), first.(ps); name=:mass_spring)
-    tspan = (0., tend)
-  # prob = ODEProblem(od, ics, tspan, ps)
-    return od, ics, tspan, ps
-end
-
-# ╔═╡ e2c3c85f-3652-42de-8c3c-8df5290a6180
-od,ic,tspan, θs = MassSpringOscillator(t->0.);
-
-# ╔═╡ d393d540-b31c-4e01-a288-b665ef30726a
-latexify(od)
-
-# ╔═╡ 48d35dce-fbc7-4eea-9c9c-31dbc0a5bd71
-prob = ODEProblem(od,ic,tspan, θs);
-
-# ╔═╡ 756dd82e-bf02-4d09-9ff0-c5ce7a79fefd
-nom_sol = solve(prob,Tsit5())
-
-# ╔═╡ 162267ad-e874-4e3a-8cc6-0bd317a07386
-plot(nom_sol)
-
-# ╔═╡ 0d5a463f-f621-4460-b385-6550449874e7
-md"""
-### Building a cost function
-
-First, some background. A cost function is a mapping of the form:
-
-> parameters -> how badly the model behaves
-
-Now you have to choose what your measure of *badly behaved* constitutes. In this example, we will choose something simple: the squared error between the solution and a nominal solution `nom_sol` on a set of timepoints. Something like:
-
-> parameters -> model -> sol -> |sol - nom_sol|^2
-
-Of course, you could use real, noisy data instead of the synthetic `nom_sol`, or an entirely different cost function.
-
-You can make a cost function however you like. You could even code it in a different language, if your model is built in e.g. Python. MinimallyDisruptiveCurves.jl only cares that the cost function has two methods:
-```julia
-function cost(params)
-   ...
-    return cost
-end
-```
-
-```julia
-function cost(params, gradient_holder)
-   ...
-    gradient_holder[:] = ...
-    # MUTATE gradient_holder so gradient_holder = d(cost)/d(params
-    return cost
-end
-```
-
-We will just use ForwardDiff to create a barebones version of the second method with the gradient. You can also use DiffEqFlux.jl or DiffEqSensitivity.jl to build your own gradients that might be more efficient or accurate.
-"""
-
-# ╔═╡ c4154cc3-c543-4355-b343-a7ec79d03988
-sol_cost(sol) = sum(abs2, nom_sol - sol)
-
-# ╔═╡ 9858a01d-3bb7-4735-ae1c-de19c884b4fc
-function cost(p)
-	_prob = remake(prob, p=p)
-	sol = solve(_prob, Tsit5(), saveat = nom_sol.t)
-	sol_cost(sol)
-end
-
-# ╔═╡ 529aa903-dd50-4b84-ba9b-028d20135c04
-function cost(p,g)
-	g[:] = ForwardDiff.gradient(cost, p)
-	return cost(p)
-end
-
-# ╔═╡ 5a4a31cc-5bdf-4610-bdc4-713735f8395b
-md"""
-Note that the gradient calculation we have coded is **not that accurate**. For instance:
-
-- ```cost(θ₀, g)``` should mutate the gradient to `g=[0., 0., 0.]`
-
-θ₀ is the nominal set of parameters, so the solution at θ₀ is identical to the nominal solution, and thus the cost is at a minimum (it is zero). Gradients at minima are always zero. However, when we try this:
-
-"""
-
-# ╔═╡ 8e3acf8c-f32c-422c-9a01-c7881a6d41a6
+# ╔═╡ 0a879b62-3b5d-4cc7-bd57-c5446c15ea67
 begin
-	g = [0., 0., 0.] #template
-	cost(θ₀ , g)
-	g
+    include("helper_functions.jl")
+    alg = Vern7 #or eg Tsit5, used for solving ODE
+    solve = OrdinaryDiffEq.solve #because it clashes with JuMP.solve
 end
 
-# ╔═╡ 638db2d2-cf26-46f8-a77e-36f76627263c
+# ╔═╡ 3d1ad2a6-9e43-11ec-10e7-a1ee1b96d8b7
 md"""
-...but don't worry! Minimally disruptive curves can evolve accurately even with inaccurate gradient calculations, as we'll see."""
+   # Analysis of NFκB regulatory module model using MinimallyDisruptiveCurves.jl
+   ## Dhruva V. Raman 
+   #### (github: Dhruva2, email: dvr23@cam.ac.uk)
 
-# ╔═╡ b13b68e7-9540-4bb2-b26e-d6efd86608a3
-H₀ = ForwardDiff.hessian(cost,θ₀)
+### Introduction
+- This classic model is constructed in:
+**Lipniacki, Tomasz, et al. "Mathematical model of NF-κB regulatory module." Journal of theoretical biology 228.2 (2004): 195-215.**
 
-# ╔═╡ 348a2244-9ef2-4d3c-8af6-5ab4c1ef427e
-md"""
-### Initial direction for the MD curve
-
-- We'll consider this more fully in different examples. For now, we'll be lazy and use the least minimally disruptive direction, to infinitesimal order, as our starting direction.
-- How? For a small perturbation:
-$$C[\theta + \delta \theta] = C[\theta] + \delta \theta^T\nabla_{\theta}C[\theta] + \frac{1}{2} \delta \theta^T\nabla^2_{\theta}C[\theta] \delta \theta,$$
-from Taylor's theorem.
-- ``\nabla_{\theta} C[\theta] = 0`` at the minimum, which gets rid of one term.
-- ``\nabla^2_{\theta}C[\theta] \succeq 0`` (is positive semidefinite).
-So we just need to find a $\delta \theta$ corresponding to eigenvector of ``\nabla^2 C[\theta]`` with smallest eigenvalue. 
+- It models the dynamics of the intracellular NFκB regulatory module in response to a time-course of the extracellular cytokine TNF (tumour necrosis factor). 
 """
 
-# ╔═╡ ac4833a0-194e-46f1-97af-7245e6a29f77
-δθ₀ = eigen(H₀).vectors[:,1]
-
-# ╔═╡ d0b4f6f5-7048-4579-af33-5aed1e161acc
+# ╔═╡ 0652e329-01b8-4087-9c15-f3692244ce75
 md"""
-
-### Summary thus far
-- *Everything up to this point was **independent** of the MinimallyDisruptiveCurves.jl package*
-
-- We have built a differentiable cost function
-- We demonstrated **one way** of finding an initial curve direction in parameter space to which the cost function is insensitive. Feel free to play around with this initial direction.
-- Now we want to use the package to generate curves on the parameter space that are minimally disruptive (with respect to this cost function), and starting in our chosen initial direction.
-
-### Evolving a minimally disruptive curve
-
-
-
-First let's set the momentum. This is **the one heuristic hyperparameter** of the algorithm.
-- Fortunately, the algorithm is (as far as I've seen) pretty robust to the choice of momentum.
-- Once $C(\theta) \geq momentum$, the curve stops. So a heuristic is to set the momentum to the highest number you are willing to allow the cost to reach.
-- A larger momentum (marginally) speeds up curve evolution, and makes the trajectory (marginally) less curvy
-
-Momentum is $(@bind mom Scrubbable(1.)) 
-
-We also want to set the maximum curve length before automatic termination:
-
-Span is (0. $(@bind endspan Scrubbable(100.)) )
-
-Now we have everything we need to specify an MDCProblem:
+Schematic of the reaction network:
+$(LocalResource("nfkb_pics/NFKB_network.png"))
+- crosses denote inhibitory effects
+- thick arrows are fast timescale reactions, according to the paper
 """
 
-# ╔═╡ 1ec6c301-b90c-4030-a853-7db1b1d8dabf
-span = (0., endspan);
-
-# ╔═╡ d7b29969-fbb5-4fca-a78e-b3dd4cc058e0
-eprob = MDCProblem(cost, θ₀, δθ₀, mom, span);
-
-# ╔═╡ d2440064-c8c1-4627-99ab-b27f6b83c909
+# ╔═╡ d0946918-96d5-4ef2-953b-b323f7a8b7bb
 md"""
-MinimallyDisruptiveCurves.jl has some **custom (optional) callback options** during curve evolution. These can be inserted using the `mdc_callback` keyword argument. To demonstrate, let's (**arbitrarily**):
-- Constrain parameters 1 and 3 to lie in the interval $[-1000, 1000]$
-- Provide online output of distance as the curve evolves, on the range 0.1:1:10
-- Show the numerical residual on the derivative of the momentum wrt to the curve direction (which should be zero), on the range 2.3:4:10
-You can see the full list of solving options by looking at src/evolve_options.jl in the source code.
+### What is done in this notebook
+
+#### 1. Load NFκB model, and NFκB output map. 
+- The ODE model is of the form: $$\dot{x} = f(x, p, u, t)$$, and the output map is of the form $$y = g(x)$$. 
+- ``p`` are the parameters. $p_0$ are the initial (best-fit) parameters. ``t`` is time.
+- ``u(t)`` is an autonomous input representing the time course of TNF influx. We took ``u = heaviside(3600 seconds)`` as in the paper. You can choose different, or multiple, input time-courses, if you prefer.
+
+#### 2. Build a loss function `lossf1` of the form:
+$$C(p) = \int^T_0 \| y(p,t) - y(p_0,t)\|_2^2.$$
+- We used `DiffEqParamEstim.build_loss_objective` to make this with little effort.
+- We use `DiffEqSensitivity.second_order_sensitivities()` to find the hessian $H = \nabla^2 C(p_0)$. *This took 115 seconds on my laptop, but only needs to be done once*.
+- Why the single Hessian? Since $\nabla C(p_0) = 0$ (local minimimum), we use the Hessian to find initial MDC directions that don't greatly disrupt the cost function $C$, to second order.
+
+
+#### 3. Generate initial curve directions for the minimally disruptive curves
+by solving the nonconvex, quadratically constrained quadratic program:
+
+$$\min_x x^T H x + \lambda \| x \|_1 : \quad x^Tx = 1,$$ 
+where $H$ is the hessian, and $\lambda = 1$ is a regularisation hyperparameter.
+- This uses a simple approx 20 line function `sparse_init_dir` included in helper_functions.jl. 
+- We set $\lambda = 1.$. This $\mathcal{L}_1$ regularisation term enforces sparsity, so the initial curve directions only involve a few parameters at a time.
+- This is **nonconvex**, with multiple local solutions. By randomising the initial conditions of the optimisation, we get many different solutions corresponding to different promising initial curve directions. 
+- We removed duplicate solutions and selected the 5 best directions
+
+#### 4. Generate 5 minimally disruptive curves corresponding to each of the 5 best initial curve directions.
+- You can run the nth curve yourself by reassigning `which_dir = n`. 
+- The longest curves took 410 seconds on my laptop. Most took 100-200 seconds.
+- You could generate curve 6, 7, etc...there are about 20 potential directions.
+
+
+
+#### 5. Scientific analysis of the curves is provided at the bottom of the notebook 
+- But note that I'm not a domain expert on this system :)
+
 """
 
-# ╔═╡ bc36827b-b968-41fc-8302-58a3663fbf3a
-cb = [
-    Verbose([CurveDistance(0.1:1:10), HamiltonianResidual(2.3:4:10)]),
-    ParameterBounds([1,3], [-1000.,-1000.], [1000.,1000.])
+# ╔═╡ 9eebc5eb-3765-4e54-a842-39e3b6bbca26
+function NFKBModel(input)
+
+    ModelingToolkit.@variables t
+    D = Differential(t)
+
+
+    @parameters kprod kdeg k1 k2 k3 a1 a2 a3 t1 t2 c6a i1 kv c1 c2 c3 c4 c5 c4a c5a i1a e1a c1a c2a c3a e2a c1c c2c c3c
+    paramvars = [kprod, kdeg, k1, k2, k3, a1, a2, a3, t1, t2, c6a, i1, kv, c1, c2, c3, c4, c5, c4a, c5a, i1a, e1a, c1a, c2a, c3a, e2a, c1c, c2c, c3c]
+
+    ModelingToolkit.@variables IKKN(t) IKKa(t) IKKi(t) IKKaIkBa(t) IKKaIkBaNfKb(t) NFkB(t) NFkBn(t) A20(t) A20t(t) IkBa(t) IkBan(t) IkBat(t) IkBaNfKb(t) IkBaNfKbn(t) Cgent(t)
+    statevars = [IKKN, IKKa, IKKi, IKKaIkBa, IKKaIkBaNfKb, NFkB, NFkBn, A20, A20t, IkBa, IkBan, IkBat, IkBaNfKb, IkBaNfKbn, Cgent]
+
+
+
+    eqs = [
+        D(IKKN) ~ kprod - kdeg * IKKN - k1 * IKKN * input(t),
+        D(IKKa) ~ -k3 * IKKa - kdeg * IKKa - a2 * IKKa * IkBa + t1 * IKKaIkBa - a3 * IKKa * IkBaNfKb + t2 * IKKaIkBaNfKb + (k1 * IKKN - k2 * IKKa * A20) * input(t),
+        D(IKKi) ~ k3 * IKKa - kdeg * IKKi + k2 * IKKa * A20 * input(t),
+        D(IKKaIkBa) ~ a2 * IKKa * IkBa - t1 * IKKaIkBa,
+        D(IKKaIkBaNfKb) ~ a3 * IKKa * IkBaNfKb - t2 * IKKaIkBaNfKb,
+        D(NFkB) ~ c6a * IkBaNfKb - a1 * NFkB * IkBa + t2 * IKKaIkBaNfKb - i1 * NFkB,
+        D(NFkBn) ~ i1 * kv * NFkB - a1 * IkBan * NFkBn,
+        D(A20) ~ c4 * A20t - c5 * A20,
+        D(A20t) ~ c2 + c1 * NFkBn - c3 * A20t,
+        D(IkBa) ~ -a2 * IKKa * IkBa - a1 * IkBa * NFkB + c4a * IkBat - c5a * IkBa - i1a * IkBa + e1a * IkBan,
+        D(IkBan) ~ -a1 * IkBan * NFkBn + i1a * kv * IkBa - e1a * kv * IkBan,
+        D(IkBat) ~ c2a + c1a * NFkBn - c3a * IkBat,
+        D(IkBaNfKb) ~ a1 * IkBa * NFkB - c6a * IkBaNfKb - a3 * IKKa * IkBaNfKb + e2a * IkBaNfKbn,
+        D(IkBaNfKbn) ~ a1 * IkBan * NFkBn - e2a * kv * IkBaNfKbn,
+        D(Cgent) ~ c2c + c1c * NFkBn - c3c * Cgent
     ]
 
-# ╔═╡ 44503314-f126-4903-9ef5-010e2a70f053
+    ps = paramvars .=> [2.5e-5, 1.25e-4, 0.0025, 0.1, 0.0015, 0.5, 0.2, 1.0, 0.1, 0.1, 2.0e-5, 0.0025, 5.0, 5.0e-7, 0, 4.0e-4, 0.5, 3.0e-4, 0.5, 1.0e-4, 0.001, 5.0e-4, 5.0e-7, 0, 4.0e-4, 0.01, 5.0e-7, 0, 4.0e-4]
+
+    temp = zeros(15)
+    temp[13] = 0.06
+    tspan = (0.0, 50000.0)
+    ic = statevars .=> temp
+
+    od = ODESystem(eqs, t, statevars, paramvars; name = :NFKB_model)
+    println("optional output map is [x[7], x[10] + x[13], x[9], x[1] + x[2] + x[3], x[2], x[12]]")
+    return od, ic, tspan, ps
+end
+
+# ╔═╡ af8a5001-c7ed-4e31-a032-a4511f75fb7e
+function NFKB_output_map(x)
+    return [x[7], x[10] + x[13], x[9], x[1] + x[2] + x[3], x[2], x[12]]
+end
+
+# ╔═╡ d2c6c608-d99e-4443-82ba-465505a27c5f
+NFKB_output_map(x, t, integrator) = output_map(x)
+
+# ╔═╡ da52e3ac-e7d1-4c76-818a-9ecca78a63a7
 md"""
-We also have a special keyword argument: `momentum_tol = 1e-3`. This is the numerical residual at which momentum of the particle tracing the curve is recalculated. **Don't use this keyword argument in general, I've just put it here for demonstration**. The exception is if the curve is sawtoothing back on itself, in which case set `momentum_tol = NaN`.
-
-You can also use **any callback compatible with DifferentialEquations.jl and DiffEqCallbacks.jl**. These can be inserted using the `callback` keyword argument.
-
-Finally, the `solve` function that evolves MD curves inherits all keyword arguments compatible with `DifferentialEquations.solve`. For instance, we have specified `dtmin` below.
+- Below, we fix the parameters that are clearly non-disruptive just from inspection of the equations: they only affect system states which do not interact with or affect the output. You don't have to: then your first minimally disruptive curves would go along these parameters.
+- We also transform the parameters and cost functions by using the `log_abs` transform:
+$$\phi(p) = log(abs(p))$$
+$$\tilde{C}(\phi(p)) = C(\phi(p))$$.
+- This prevents sign changes, and allows us to consider relative changes in the parameters, i.e. we bypass the issue that the nominal parameter values span several orders of magnitude.
 """
 
-# ╔═╡ 4430dcd3-474c-42c6-a4c9-9b41b45fd17a
-@time mdc = evolve(eprob, Tsit5; mdc_callback = cb, callback=nothing, dtmin=0.01, momentum_tol = NaN);
-
-# ╔═╡ 2dfebbff-3d71-48e0-883b-020e13f38c14
-md"""
-### MD curve analysis
-
-In different tutorials we will put more emphasis on post-curve analysis (both conceptually and by demonstrating helper functions in the codebase)
-
-For now, let's just plot the curve:
-"""
-
-# ╔═╡ 332dec4f-c942-403a-b86e-d7829e6810ae
-cc = cost_trajectory(mdc, distances(mdc));
-
-# ╔═╡ ae4b44cb-5ce0-49cc-9e4b-3067fd03afae
-p1= plot(mdc; idxs=[1,2,3], pnames = first.(θs), what = :trajectory);
-
-# ╔═╡ 2ada1933-4cb2-43fc-8569-dc33a53340c0
-p2 = plot(distances(mdc), log.(cc), ylabel = "log(cost)", xlabel = "distance", title = "cost over MD curve");
-
-# ╔═╡ a8dc1660-8977-4ad9-88e0-ba29d01eec0b
-p3 = plot(mdc; idxs=[1,2,3], pnames = first.(θs), what = :final_changes);
-
-# ╔═╡ 48f8da36-97f1-498f-b585-fe6a32f801cb
-p = plot(p1,p2,p3, layout = (3,1))
-
-# ╔═╡ 3e99fb45-cbac-4a4d-a608-ecc54605e410
-md"""
-Notice that the cost stays at numerical zero ($\leq exp(-18)$). As we predicted, the ratios $\frac{c}{m}$ and $\frac{k}{m}$ are preserved over the curve. 
-
-Notice the numerical accuracy isn't shabby, given the degree of numerical error in calculations of the cost gradient!:
-"""
-
-# ╔═╡ bc1fcf93-7877-433c-86d7-0e21d2925b51
-ratios = θ -> [θ[2]/θ[1] ,θ[3]/θ[1]]
-
-# ╔═╡ 865fe978-0f4e-4fca-b9e4-382032996f4b
-ratios(θ₀)
-
-# ╔═╡ 806c8f47-d66d-4755-960a-0201e15cd940
-ratios(mdc(100)[:states])
-
-# ╔═╡ d8bb862b-548b-4454-bc23-c2aaf5d5368e
-md"""
-### Summing different costs
-
-Recall from the preliminary maths that the above minimally disruptive curve only holds in the unforced case, when $F(t) = 0$.
-
-Let's now try to find a minimally disruptive curve that holds under **two** conditions:
-- the unforced case
-- a sinusoidal forcing term
-So points on the minimally disruptive curve will correspond to parameters that minimally disrupt the collective behaviours of the nominal system in both of these cases.
-
-What do you imagine will happen? For nonzero $F(t)$ it looks clear that all parameters in
-
-$$m\ddot{x}(t) + c \dot{x}(t) + kx(t) = F(t).$$
-will affect behaviour.
-
-So any curve on parameter space will be disruptive, to some extent. What is the least disruptive curve? This is no longer an analytically tractable problem like before, when $F(t) = 0$ held.
-
-1. Let's build and plot the forced system:
-"""
-
-# ╔═╡ 29aa55b2-8d11-4bf0-afbe-8c381fcbc291
+# ╔═╡ 3d7c0527-5176-4a35-b4ee-dfe09ba34c4c
 begin
-	od2,_ , _ , _ = MassSpringOscillator(sin);
-	prob2 = ODEProblem(od2,ic,tspan,θs)
-	nom_sol2 = solve(prob2,Tsit5())
-	plot(nom_sol2)
+    od, ic, tspan, ps = NFKBModel(soft_heaviside(0.01, 3600)) #argument is input to the model
+    prob = ODEProblem(od, ic, tspan, ps)
+
+
+    to_fix = ["c2c", "c2", "c2a", "c3c", "c1c", "a2"]
+    ts1 = fix_params(last.(ps), get_name_ids(ps, to_fix))
+    od, ic, ps = transform_problem(prob, ts1; unames = first.(ic), pnames = first.(ps))
+    prob = ODEProblem(od, ic, tspan, ps)
+
+
+    ts2 = logabs_transform(last.(ps))
+    od, ic, ps = transform_problem(prob, ts2; unames = first.(ic), pnames = first.(ps))
+    prob = ODEProblem(od, ic, tspan, ps)
+    p0 = last.(ps)
 end
 
-# ╔═╡ 2de1b351-cd94-4554-80ca-50f2516d2be2
+# ╔═╡ f5b3757f-3806-46cd-a36d-416380207364
 md"""
-2. Let's build a cost function that reflects discrepancy from the nominal trajectory above, for the forced system.
+- below, we make a loss function on the solution. It is the l2 norm deviation of the output map of the model simulation, vs the nominal simulation at p0
 """
 
-# ╔═╡ bc17b9c0-c837-4bb2-8191-963b00feb32e
-sol_cost2(sol) = sum(abs2, nom_sol2 - sol)
-
-# ╔═╡ 6b672051-6192-443e-a2f7-e886a03b4861
-function cost2(p)
-	_prob2 = remake(prob2, p=p)
-	sol2 = solve(_prob2, Tsit5(), saveat = nom_sol2.t)
-	sol_cost2(sol2)
+# ╔═╡ 7ce245b4-22bf-4e2c-932f-6cf5b4ed518a
+begin
+    om = NFKB_output_map
+    nom_sol = solve(prob, alg())
+    tsteps = nom_sol.t
+    integrand(el1, el2) = sum(abs2, om(el1) - om(el2))
+    lossf(sol, nom_sol) = sum(integrand(el1, el2) for (el1, el2) in zip(eachcol(sol), eachcol(nom_sol)))
+    lossf1(sol) = lossf(sol, nom_sol)
 end
 
-# ╔═╡ 7e7d2cb1-f58d-45ee-b650-0a62c0e70689
-function cost2(p,g)
-	g[:] = ForwardDiff.gradient(cost2, p)
-	return cost2(p)
-end
-
-# ╔═╡ 77732289-c2bd-490f-9313-32c4c2b6e298
+# ╔═╡ b1f0a9cf-f121-4827-a350-0e15ef1584db
 md"""
-... and sum the costs!
+- below, we get the Hessian at p0 (the one time we must expensively calculate the Hessian). Takes 83 seconds on my laptop. Most of that is probably compiling Julia functions, rather than running the actual code, to be fair.
 """
 
-# ╔═╡ bfc1381e-17cd-4f89-bd35-a72e8c69948e
-summed_cost = sum_losses([cost, cost2], θ₀);
+# ╔═╡ ab928772-4f3a-4462-bc77-4ee9cf313257
+begin
+    nom_prob = ODEProblem(od, ic, tspan, ps) # oop for second_order_sensitivities
+    @time hess = second_order_sensitivities(lossf1, nom_prob, alg())
+    cost = build_loss_objective(nom_prob, alg(), saveat = tsteps, lossf1; mpg_autodiff = true)
+end
 
-# ╔═╡ 4dee52c6-e683-45bd-964d-f43f265601f1
+# ╔═╡ ea397048-b722-4ee1-935e-46ec4207bc0d
+begin #test new cost
+	function lloss(p)
+		pprob = remake(nom_prob; p=p)
+		psol = solve(pprob, Tsit5(), saveat=tsteps)
+		lossf1(psol)
+	end
+
+
+
+	autodiff_prototype = zero(pprob.p)
+	autodiff_chunk = ForwardDiff.Chunk(autodiff_prototype)
+	cfg = ForwardDiff.GradientConfig(lloss, autodiff_prototype, autodiff_chunk)
+    g! = (x, out) -> ForwardDiff.gradient!(out, cost_function, x, gcfg)
+
+	function llossg(p, g)
+		ForwardDiff.gradient!(g, lloss, p, cfg)
+		lloss(p)
+	end
+
+	ccost = DiffCost(lloss, llossg)
+
+end
+
+# ╔═╡ ca66247d-22c1-43b0-a8e5-5137b9352db6
+begin
+    potential_dirs = [sparse_init_dir(hess)[1] for i = 1:100]
+    pd_projs = [el' * hess * el for el in potential_dirs] # ie how good is each guess
+    inds = sortperm(pd_projs) # sort in order
+    potential_dirs = potential_dirs[inds]
+    duplicates = [] # remove potential_directions that are approximately equal (norm(a-b) < 1e-5) to previous directions
+    for (i, el) in enumerate(potential_dirs)
+        for (j, comp) in enumerate(potential_dirs[i+1:end])
+            if ((norm(el - comp) < 1e-5) || (norm(el + comp) < 1e-5))
+                push!(duplicates, i + j)
+            end
+        end
+    end
+    potential_dirs[unique(duplicates)]
+    potential_dirs = potential_dirs[setdiff(1:length(potential_dirs), duplicates)]
+end
+
+# ╔═╡ b2912566-de69-429b-a191-8696897b0dd3
+potential_dirs[1]
+
+# ╔═╡ 55053a59-3cad-40d3-9ab3-36ecd87e5036
+begin
+    which_dir = 1
+	spans = [(0., 10.), (0., 10.), (0., 20.), (0., 3.), (0., 6.)
+	# spans = [(-10., 10.), (-15., 10.), (-20., 20.), (-20., 3.05), (-6., 6.)
+    moms = 10 * [1.0, 1.0, 1.0, 1.0, 1.0]
+end
+
+# ╔═╡ ae43c4bf-5500-4b0b-8a0f-d45ba27b2ea1
+begin
+    dp0 = potential_dirs[which_dir]
+    mom = moms[which_dir]
+    span = spans[which_dir]
+    eprob = MDCProblem(cost, p0, dp0, mom, span)
+
+    cb = [
+        Verbose([CurveDistance(0.1:1:spans[which_dir][2])])
+    ]
+end
+
+# ╔═╡ 309afb6f-a0de-4492-8e35-3c8b29c2e378
+# g
+
+# ╔═╡ c4d36aba-2b47-4580-a42c-210b941c6a1b
+# @time mdc = evolve(eprob, Tsit5; mdc_callback = cb);
+
+# ╔═╡ 94e632cf-db22-4dea-a478-84d4c8e39269
 md"""
-- Note that above we summed the two cost functions, using `sum_losses`. This works for **any** compatible cost functions. Doesn't matter how they are generated individually.
+# Analysing the Minimally Disruptive Curve outputs
 
-- If you restart julia with multiple threads, than evaluating each subcomponent of the summed cost runs on a separate thread, increasing speed.
+- You can generate the nth curve yourself by running the code above, and setting which_dir = n. 
+- Here I generate and analyse the first 5 curves.
+- Note that in each curve, **all** parameters of the model are free to vary. I used the purely automatic initial direction selection given in the code above. So generation of the curves required no domain knowledge.
+- However, I only graphed the 5 biggest changing parameters (over the curve), to avoid cluttering the figures.
+- In general, domain knowledge might be used to infer free parameters and promising initial curve directions.
 
-Again, let's find the direction of minimal sensitivity for the initial curve direction, and run the curve:
+**Note**: I didn't graph the dynamics of the perturbed NFkB model as parameters varied along the MD curves in general. If you want to do this, run the block of code below. Substitute 
+```s = (distance along mdc curve you want to test).```
+
+**Note**: to give you a rough idea of how much 'cost = x' visually perturbs the dynamics, I plotted an example below, where the cost = 0.49 (higher than any point on any minimally disruptive curve in this notebook!). This was on the 5th MDC, where I set the final distances higher than in this notebook. Note that the cost is on the **output trajectory**, not the state trajectory. So the latter changes a bit more, as you can see.
+
+**Conclusion:** the cost is negligibly small at any point on the following minimally disruptive curves.
+
 """
 
-# ╔═╡ 4c31745b-6e98-4a56-8925-2fc8c0379dab
+# ╔═╡ 6d0f2aa8-13b6-425e-a896-10324d7a5042
 begin
-	H₁ = ForwardDiff.hessian(summed_cost,θ₀)
-	δθ₁ = eigen(H₁).vectors[:,1];
+    s = 6.0
+    ss = check_sol_at_dist(s, prob, mdc)
+    sol = solve(prob, alg())
+    p1 = plot(ss.t, transpose(hcat(om.(ss.u)...)), legend = false, title = "perturbed trajectory: outputs")
+    annotate!(p1, 40000, 0.3, "cost = $(@sprintf("%.2f", cost(mdc(s)[:states])))")
+    p2 = plot(sol.t, transpose(hcat(om.(sol.u)...)), legend = false, title = "nominal trajectory: outputs")
+    p3 = plot(ss, legend = false, title = "perturbed trajectory: all states")
+    p4 = plot(sol, legend = false, title = "nominal trajectory: all states")
+    pp = plot(p1, p2, p3, p4)
+    # savefig(pp, "mdc_vs_nominal_nfkb_comparison.png")
 end
 
-# ╔═╡ 36b6da5e-4576-4704-8cd8-5a960c367b8d
-begin
-	mom2 = 10.
-	span2 = (-50.,50.)
-	eprob2 = MDCProblem(summed_cost, θ₀, δθ₁, mom2, span2);
-	cb2 = [      Verbose([CurveDistance(0.1:10:99)]),
-	            ParameterBounds([1,2,3], [0.,0.,0.], [1000.,1000.,1000.])
-	        ]
-end
-
-# ╔═╡ 2540e729-9a04-45db-8570-ac2f310ac869
-@time mdc2 = evolve(eprob2, Tsit5; mdc_callback=cb2);
-
-# ╔═╡ 29c0211b-965f-4dc8-8310-5e618a22219d
-begin
-	plot(mdc2; idxs=[1,2,3], pnames = first.(θs), what = :trajectory)
-end
-
-# ╔═╡ fc7deb80-bfe6-4d3c-8eb5-92cf116668a1
+# ╔═╡ 36af75cf-3360-4f2f-85f8-f514d46153fc
 md"""
-The curve is looking for directions that keep the cost low, but it cant find them so it keeps doubling back on itself. Note that the cost at the point it doubles back (see below) is just below the momentum level.
+## Curve 1
+![NFKB_mdc_1.png](nfkb_pics/NFKB_mdc_1.png)
 """
-
-# ╔═╡ 8c7ae698-b517-4978-a109-188be87ee90d
-begin
-	summed_cost(mdc2(40.)[:states])
-end
-
-# ╔═╡ dd76e380-f5eb-4d6c-8fb8-64f7d2ccf919
-begin
-	pp = mdc2(40.)[:states]
-	mprob = remake(prob2, p = pp)
-	msol = solve(mprob, Tsit5(), saveat=nom_sol2.t)
-	plot(msol)
-	plot!(nom_sol2)
-end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
-ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
-Latexify = "23fbe1c1-3f47-55db-b15f-69d7ec21a316"
+Dierckx = "39dd38d3-220a-591b-8e3c-4c3a8c710a94"
+DiffEqParamEstim = "1130ab10-4a5a-5621-a13d-e4788d82bd4c"
+DiffEqSensitivity = "41bf760c-e81c-5289-8e54-58b1f1f8abe2"
+Ipopt = "b6b21f68-93f8-5de0-b562-5493be1d77c9"
+JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MinimallyDisruptiveCurves = "c6328df5-4af8-4637-a9e9-78ed74a2ae2b"
 ModelingToolkit = "961ee093-0014-501f-94e3-6117800e7a78"
 OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+QuadGK = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
+Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [compat]
-ForwardDiff = "~0.10.25"
-Latexify = "~0.15.12"
+Dierckx = "~0.5.2"
+DiffEqParamEstim = "~1.23.0"
+DiffEqSensitivity = "~6.70.0"
+Ipopt = "~0.7.0"
+JuMP = "~0.21.10"
 MinimallyDisruptiveCurves = "~0.3.0"
 ModelingToolkit = "~6.7.1"
 OrdinaryDiffEq = "~5.71.0"
 Plots = "~1.26.0"
-PlutoUI = "~0.7.35"
+PlutoUI = "~0.7.36"
+QuadGK = "~2.4.2"
+Zygote = "~0.6.35"
+
+[extras]
+CPUSummary = "2a0fbf3d-bb9c-48f3-b0a9-814d99fd7ab9"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -439,6 +332,18 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.7.0"
 manifest_format = "2.0"
+
+[[deps.ASL_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "6252039f98492252f9e47c312c8ffda0e3b9e78d"
+uuid = "ae81ac8f-d209-56e5-92de-9978fef736f9"
+version = "0.1.3+0"
+
+[[deps.AbstractFFTs]]
+deps = ["ChainRulesCore", "LinearAlgebra"]
+git-tree-sha1 = "6f1d9bc1c08f9f4a8fa92e3ea3cb50153a1b40d4"
+uuid = "621f4979-c628-5d54-868e-fcf4e3e8185c"
+version = "1.1.0"
 
 [[deps.AbstractPlutoDingetjes]]
 deps = ["Pkg"]
@@ -477,8 +382,26 @@ git-tree-sha1 = "1ee88c4c76caa995a885dc2f22a5d548dfbbc0ba"
 uuid = "4fba245c-0d91-5ea0-9b3e-6abc04ee57a9"
 version = "3.2.2"
 
+[[deps.ArrayLayouts]]
+deps = ["FillArrays", "LinearAlgebra", "SparseArrays"]
+git-tree-sha1 = "56c347caf09ad8acb3e261fe75f8e09652b7b05b"
+uuid = "4c555306-a7a7-4459-81d9-ec55ddd5c99a"
+version = "0.7.10"
+
 [[deps.Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
+
+[[deps.AxisAlgorithms]]
+deps = ["LinearAlgebra", "Random", "SparseArrays", "WoodburyMatrices"]
+git-tree-sha1 = "66771c8d21c8ff5e3a93379480a2307ac36863f7"
+uuid = "13072b0f-2c55-5437-9ae7-d433b7a33950"
+version = "1.0.1"
+
+[[deps.BandedMatrices]]
+deps = ["ArrayLayouts", "FillArrays", "LinearAlgebra", "Random", "SparseArrays"]
+git-tree-sha1 = "ce68f8c2162062733f9b4c9e3700d5efc4a8ec47"
+uuid = "aae01518-5342-5314-be14-df237901396f"
+version = "0.16.11"
 
 [[deps.BangBang]]
 deps = ["Compat", "ConstructionBase", "Future", "InitialValues", "LinearAlgebra", "Requires", "Setfield", "Tables", "ZygoteRules"]
@@ -494,10 +417,22 @@ git-tree-sha1 = "aebf55e6d7795e02ca500a689d326ac979aaf89e"
 uuid = "9718e550-a3fa-408a-8086-8db961cd8217"
 version = "0.1.1"
 
+[[deps.BenchmarkTools]]
+deps = ["JSON", "Logging", "Printf", "Profile", "Statistics", "UUIDs"]
+git-tree-sha1 = "4c10eee4af024676200bc7752e536f858c6b8f93"
+uuid = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+version = "1.3.1"
+
 [[deps.Bijections]]
 git-tree-sha1 = "705e7822597b432ebe152baa844b49f8026df090"
 uuid = "e2ed5e7c-b2de-5872-ae92-c73ca462fb04"
 version = "0.1.3"
+
+[[deps.BinaryProvider]]
+deps = ["Libdl", "Logging", "SHA"]
+git-tree-sha1 = "ecdec412a9abc8db54c0efc5548c64dfce072058"
+uuid = "b99e7846-7c00-51b0-8f62-c81ae34c0232"
+version = "0.5.10"
 
 [[deps.BitTwiddlingConvenienceFunctions]]
 deps = ["Static"]
@@ -505,23 +440,40 @@ git-tree-sha1 = "28bbdbf0354959db89358d1d79d421ff31ef0b5e"
 uuid = "62783981-4cbd-42fc-bca8-16325de8dc4b"
 version = "0.1.3"
 
+[[deps.BlockArrays]]
+deps = ["ArrayLayouts", "FillArrays", "LinearAlgebra"]
+git-tree-sha1 = "21490270d1fcf2efa9ddb2126d6958e9b72a4db0"
+uuid = "8e7c35d0-a365-5155-bbbb-fb81a777f24e"
+version = "0.16.11"
+
+[[deps.BlockBandedMatrices]]
+deps = ["ArrayLayouts", "BandedMatrices", "BlockArrays", "FillArrays", "LinearAlgebra", "MatrixFactorizations", "SparseArrays", "Statistics"]
+git-tree-sha1 = "b1db5b5daca19070297580e1c5b5095e7ada6792"
+uuid = "ffab5731-97b5-5995-9138-79e8c1846df0"
+version = "0.11.1"
+
 [[deps.Bzip2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "19a35467a82e236ff51bc17a3a44b69ef35185a2"
 uuid = "6e34b625-4abd-537c-b88f-471c36dfa7a0"
 version = "1.0.8+0"
 
+[[deps.CEnum]]
+git-tree-sha1 = "215a9aa4a1f23fbd05b92769fdd62559488d70e9"
+uuid = "fa961155-64e5-5f13-b03f-caf6b980ea82"
+version = "0.4.1"
+
 [[deps.CPUSummary]]
 deps = ["Hwloc", "IfElse", "Preferences", "Static"]
-git-tree-sha1 = "2b44e53a616dc46d1d45617668d42ec6ba2dfeb4"
+git-tree-sha1 = "2283583c451e880ec11c7fd693613434fb5ffa74"
 uuid = "2a0fbf3d-bb9c-48f3-b0a9-814d99fd7ab9"
-version = "0.1.11"
+version = "0.1.12"
 
 [[deps.CSTParser]]
 deps = ["Tokenize"]
-git-tree-sha1 = "6cc1759204bed5a4e2a5c2f00901fd5d90bc7a62"
+git-tree-sha1 = "b66abc140f8b90a1d6bc7bfad5c80070f8c1ddc6"
 uuid = "00ebfdb7-1f24-5e51-bd34-a7502290713f"
-version = "3.3.1"
+version = "3.3.3"
 
 [[deps.Cairo_jll]]
 deps = ["Artifacts", "Bzip2_jll", "Fontconfig_jll", "FreeType2_jll", "Glib_jll", "JLLWrappers", "LZO_jll", "Libdl", "Pixman_jll", "Pkg", "Xorg_libXext_jll", "Xorg_libXrender_jll", "Zlib_jll", "libpng_jll"]
@@ -534,6 +486,17 @@ deps = ["LinearAlgebra"]
 git-tree-sha1 = "f641eb0a4f00c343bbc32346e1217b86f3ce9dad"
 uuid = "49dc2e85-a5d0-5ad3-a950-438e2897f1b9"
 version = "0.5.1"
+
+[[deps.Cassette]]
+git-tree-sha1 = "6ce3cd755d4130d43bab24ea5181e77b89b51839"
+uuid = "7057c7e9-c182-5462-911a-8362d720325c"
+version = "0.3.9"
+
+[[deps.ChainRules]]
+deps = ["ChainRulesCore", "Compat", "IrrationalConstants", "LinearAlgebra", "Random", "RealDot", "SparseArrays", "Statistics"]
+git-tree-sha1 = "098b5eeb1170f569a45f363066b0e405868fc210"
+uuid = "082447d4-558c-5d27-93f4-14fc19e9eca2"
+version = "1.27.0"
 
 [[deps.ChainRulesCore]]
 deps = ["Compat", "LinearAlgebra", "SparseArrays"]
@@ -552,6 +515,18 @@ deps = ["ArrayInterface", "Static"]
 git-tree-sha1 = "f576084239e6bdf801007c80e27e2cc2cd963fe0"
 uuid = "fb6a15b2-703c-40df-9091-08a04967cfa9"
 version = "0.1.6"
+
+[[deps.CodecBzip2]]
+deps = ["Bzip2_jll", "Libdl", "TranscodingStreams"]
+git-tree-sha1 = "2e62a725210ce3c3c2e1a3080190e7ca491f18d7"
+uuid = "523fee87-0ab8-5b00-afb7-3ecf72e48cfd"
+version = "0.7.2"
+
+[[deps.CodecZlib]]
+deps = ["TranscodingStreams", "Zlib_jll"]
+git-tree-sha1 = "ded953804d019afa9a3f98981d99b33e3db7b6da"
+uuid = "944b1d66-785c-5afd-91f1-9de20f533193"
+version = "0.7.0"
 
 [[deps.ColorSchemes]]
 deps = ["ColorTypes", "Colors", "FixedPointNumbers", "Random"]
@@ -595,9 +570,9 @@ version = "0.3.0"
 
 [[deps.Compat]]
 deps = ["Base64", "Dates", "DelimitedFiles", "Distributed", "InteractiveUtils", "LibGit2", "Libdl", "LinearAlgebra", "Markdown", "Mmap", "Pkg", "Printf", "REPL", "Random", "SHA", "Serialization", "SharedArrays", "Sockets", "SparseArrays", "Statistics", "Test", "UUIDs", "Unicode"]
-git-tree-sha1 = "44c37b4636bc54afac5c574d2d02b625349d6582"
+git-tree-sha1 = "96b0bc6c52df76506efc8a441c6cf1adcb1babc4"
 uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
-version = "3.41.0"
+version = "3.42.0"
 
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -671,6 +646,18 @@ git-tree-sha1 = "80c3e8639e3353e5d2912fb3a1916b8455e2494b"
 uuid = "b429d917-457f-4dbc-8f4c-0cc954292b1d"
 version = "0.4.0"
 
+[[deps.Dierckx]]
+deps = ["Dierckx_jll"]
+git-tree-sha1 = "633c119fcfddf61fb4c75d77ce3ebab552a44723"
+uuid = "39dd38d3-220a-591b-8e3c-4c3a8c710a94"
+version = "0.5.2"
+
+[[deps.Dierckx_jll]]
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "6596b96fe1caff3db36415eeb6e9d3b50bfe40ee"
+uuid = "cd4c43a9-7502-52ba-aa6d-59fb2a88580b"
+version = "0.1.0+0"
+
 [[deps.DiffEqBase]]
 deps = ["ArrayInterface", "ChainRulesCore", "DEDataArrays", "DataStructures", "Distributions", "DocStringExtensions", "FastBroadcast", "ForwardDiff", "FunctionWrappers", "IterativeSolvers", "LabelledArrays", "LinearAlgebra", "Logging", "MuladdMacro", "NonlinearSolve", "Parameters", "PreallocationTools", "Printf", "RecursiveArrayTools", "RecursiveFactorization", "Reexport", "Requires", "SciMLBase", "Setfield", "SparseArrays", "StaticArrays", "Statistics", "SuiteSparse", "ZygoteRules"]
 git-tree-sha1 = "0dee26eff5f7a4ab0381f43281c9734354ddc93d"
@@ -688,6 +675,30 @@ deps = ["ArrayInterface", "Compat", "DataStructures", "DiffEqBase", "FunctionWra
 git-tree-sha1 = "9f47b8ae1c6f2b172579ac50397f8314b460fcd9"
 uuid = "c894b116-72e5-5b58-be3c-e6d8d4ac2b12"
 version = "7.3.1"
+
+[[deps.DiffEqNoiseProcess]]
+deps = ["DiffEqBase", "Distributions", "LinearAlgebra", "Optim", "PoissonRandom", "QuadGK", "Random", "Random123", "RandomNumbers", "RecipesBase", "RecursiveArrayTools", "Requires", "ResettableStacks", "SciMLBase", "StaticArrays", "Statistics"]
+git-tree-sha1 = "d6839a44a268c69ef0ed927b22a6f43c8a4c2e73"
+uuid = "77a26b50-5914-5dd7-bc55-306e6241c503"
+version = "5.9.0"
+
+[[deps.DiffEqOperators]]
+deps = ["BandedMatrices", "BlockBandedMatrices", "DiffEqBase", "DomainSets", "ForwardDiff", "LazyArrays", "LazyBandedMatrices", "LinearAlgebra", "LoopVectorization", "NNlib", "NonlinearSolve", "Requires", "RuntimeGeneratedFunctions", "SciMLBase", "SparseArrays", "SparseDiffTools", "StaticArrays", "SuiteSparse"]
+git-tree-sha1 = "ef58ccdd4834d54826708982d5477e793a4a2f6f"
+uuid = "9fdde737-9c7f-55bf-ade8-46b3f136cc48"
+version = "4.41.0"
+
+[[deps.DiffEqParamEstim]]
+deps = ["Calculus", "Dierckx", "DiffEqBase", "DiffEqSensitivity", "Distributions", "ForwardDiff", "LinearAlgebra", "LsqFit", "PenaltyFunctions", "PreallocationTools", "RecursiveArrayTools", "SciMLBase"]
+git-tree-sha1 = "f970914d1366679bdf56bcc41575e3d1599aeb37"
+uuid = "1130ab10-4a5a-5621-a13d-e4788d82bd4c"
+version = "1.23.0"
+
+[[deps.DiffEqSensitivity]]
+deps = ["Adapt", "ArrayInterface", "Cassette", "ChainRulesCore", "DiffEqBase", "DiffEqCallbacks", "DiffEqNoiseProcess", "DiffEqOperators", "DiffRules", "Distributions", "Enzyme", "FFTW", "FiniteDiff", "ForwardDiff", "GlobalSensitivity", "LinearAlgebra", "LinearSolve", "OrdinaryDiffEq", "Parameters", "QuadGK", "QuasiMonteCarlo", "Random", "RandomNumbers", "RecursiveArrayTools", "Reexport", "Requires", "ReverseDiff", "SciMLBase", "SharedArrays", "Statistics", "StochasticDiffEq", "Tracker", "Zygote", "ZygoteRules"]
+git-tree-sha1 = "12bf5b525f6ff1892451ea14d05627207059a8d7"
+uuid = "41bf760c-e81c-5289-8e54-58b1f1f8abe2"
+version = "6.70.0"
 
 [[deps.DiffResults]]
 deps = ["StaticArrays"]
@@ -735,9 +746,9 @@ uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 
 [[deps.DualNumbers]]
 deps = ["Calculus", "NaNMath", "SpecialFunctions"]
-git-tree-sha1 = "84f04fe68a3176a583b864e492578b9466d87f1e"
+git-tree-sha1 = "90b158083179a6ccbce2c7eb1446d5bf9d7ae571"
 uuid = "fa6b7ba4-c1ee-5f82-b5fc-ecf0adba8f74"
-version = "0.6.6"
+version = "0.6.7"
 
 [[deps.DynamicPolynomials]]
 deps = ["DataStructures", "Future", "LinearAlgebra", "MultivariatePolynomials", "MutableArithmetics", "Pkg", "Reexport", "Test"]
@@ -756,6 +767,18 @@ deps = ["ArrayInterface"]
 git-tree-sha1 = "d7ab55febfd0907b285fbf8dc0c73c0825d9d6aa"
 uuid = "da5c29d0-fa7d-589e-88eb-ea29b0a81949"
 version = "1.3.0"
+
+[[deps.Enzyme]]
+deps = ["Adapt", "CEnum", "Enzyme_jll", "GPUCompiler", "LLVM", "Libdl", "ObjectFile", "Test"]
+git-tree-sha1 = "c7b2d2602edf60ac75f65c99d65ab0ea610e71f5"
+uuid = "7da242da-08ed-463a-9acd-ee780be4f1d9"
+version = "0.8.5"
+
+[[deps.Enzyme_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "80a854ec5f97162bbae8e21b18c5e09d19b2fe98"
+uuid = "7cc45869-7501-5eee-bdea-0790c847d4ef"
+version = "0.0.25+0"
 
 [[deps.Expat_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -786,11 +809,23 @@ git-tree-sha1 = "d8a578692e3077ac998b50c0217dfd67f21d1e5f"
 uuid = "b22a6f82-2f65-5046-a5b2-351ab43fb4e5"
 version = "4.4.0+0"
 
+[[deps.FFTW]]
+deps = ["AbstractFFTs", "FFTW_jll", "LinearAlgebra", "MKL_jll", "Preferences", "Reexport"]
+git-tree-sha1 = "505876577b5481e50d089c1c68899dfb6faebc62"
+uuid = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
+version = "1.4.6"
+
+[[deps.FFTW_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "c6033cc3892d0ef5bb9cd29b7f2f0331ea5184ea"
+uuid = "f5851436-0d7a-5f13-b9de-f02708fd171a"
+version = "3.3.10+0"
+
 [[deps.FastBroadcast]]
 deps = ["LinearAlgebra", "Polyester", "Static"]
-git-tree-sha1 = "cc0f89c692ca9390ec9b129cf9b8bc1c1f7bcc84"
+git-tree-sha1 = "f39bcc05eb0dcbd2c0195762df7a5737041289b9"
 uuid = "7034ab61-46d4-4ed7-9d0f-46aef9175898"
-version = "0.1.13"
+version = "0.1.14"
 
 [[deps.FastClosures]]
 git-tree-sha1 = "acebe244d53ee1b461970f8910c235b259e772ef"
@@ -860,6 +895,12 @@ git-tree-sha1 = "51d2dfe8e590fbd74e7a842cf6d13d8a2f45dc01"
 uuid = "0656b61e-2033-5cc2-a64a-77c0f6c09b89"
 version = "3.3.6+0"
 
+[[deps.GPUCompiler]]
+deps = ["ExprTools", "InteractiveUtils", "LLVM", "Libdl", "Logging", "TimerOutputs", "UUIDs"]
+git-tree-sha1 = "647a54f196b5ffb7c3bc2fec5c9a57fa273354cc"
+uuid = "61eb1bfa-7361-4325-ad38-22787b887f55"
+version = "0.13.14"
+
 [[deps.GR]]
 deps = ["Base64", "DelimitedFiles", "GR_jll", "HTTP", "JSON", "Libdl", "LinearAlgebra", "Pkg", "Printf", "Random", "RelocatableFolders", "Serialization", "Sockets", "Test", "UUIDs"]
 git-tree-sha1 = "9f836fb62492f4b0f0d3b06f55983f2704ed0883"
@@ -889,6 +930,12 @@ deps = ["Artifacts", "Gettext_jll", "JLLWrappers", "Libdl", "Libffi_jll", "Libic
 git-tree-sha1 = "a32d672ac2c967f3deb8a81d828afc739c838a06"
 uuid = "7746bdde-850d-59dc-9ae8-88ece973131d"
 version = "2.68.3+2"
+
+[[deps.GlobalSensitivity]]
+deps = ["Distributions", "FFTW", "ForwardDiff", "KernelDensity", "LinearAlgebra", "Parameters", "QuasiMonteCarlo", "Random", "RecursiveArrayTools", "Statistics", "StatsBase", "Trapz"]
+git-tree-sha1 = "0324e96625317e8f1cd51196be542de18788e3af"
+uuid = "af5da776-676b-467e-8baf-acd8249e4f0f"
+version = "1.3.2"
 
 [[deps.Graphite2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -960,6 +1007,12 @@ git-tree-sha1 = "f7be53659ab06ddc986428d3a9dcc95f6fa6705a"
 uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
 version = "0.2.2"
 
+[[deps.IRTools]]
+deps = ["InteractiveUtils", "MacroTools", "Test"]
+git-tree-sha1 = "7f43342f8d5fd30ead0ba1b49ab1a3af3b787d24"
+uuid = "7869d1d1-7146-5819-86e3-90919afe41df"
+version = "0.4.5"
+
 [[deps.IfElse]]
 git-tree-sha1 = "debdd00ffef04665ccbb3e150747a77560e8fad1"
 uuid = "615f187c-cbe4-4ef1-ba3b-2fcf58d6d173"
@@ -980,9 +1033,21 @@ git-tree-sha1 = "4da0f88e9a39111c2fa3add390ab15f3a44f3ca3"
 uuid = "22cec73e-a1b8-11e9-2c92-598750a2cf9c"
 version = "0.3.1"
 
+[[deps.IntelOpenMP_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "d979e54b71da82f3a65b62553da4fc3d18c9004c"
+uuid = "1d5cc7b8-4909-519e-a0f8-d0f5ad9712d0"
+version = "2018.0.3+2"
+
 [[deps.InteractiveUtils]]
 deps = ["Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
+
+[[deps.Interpolations]]
+deps = ["AxisAlgorithms", "ChainRulesCore", "LinearAlgebra", "OffsetArrays", "Random", "Ratios", "Requires", "SharedArrays", "SparseArrays", "StaticArrays", "WoodburyMatrices"]
+git-tree-sha1 = "b15fc0a95c564ca2e0a7ae12c1f095ca848ceb31"
+uuid = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
+version = "0.13.5"
 
 [[deps.IntervalSets]]
 deps = ["Dates", "EllipsisNotation", "Statistics"]
@@ -995,6 +1060,18 @@ deps = ["Test"]
 git-tree-sha1 = "a7254c0acd8e62f1ac75ad24d5db43f5f19f3c65"
 uuid = "3587e190-3f89-42d0-90ee-14403ec27112"
 version = "0.1.2"
+
+[[deps.Ipopt]]
+deps = ["BinaryProvider", "Ipopt_jll", "Libdl", "LinearAlgebra", "MathOptInterface", "MathProgBase"]
+git-tree-sha1 = "380786b4929b8d18d76e909c6b2eca355b7c3bd6"
+uuid = "b6b21f68-93f8-5de0-b562-5493be1d77c9"
+version = "0.7.0"
+
+[[deps.Ipopt_jll]]
+deps = ["ASL_jll", "Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "MUMPS_seq_jll", "OpenBLAS32_jll", "Pkg"]
+git-tree-sha1 = "82124f27743f2802c23fcb05febc517d0b15d86e"
+uuid = "9cc047cb-c261-5740-88fc-0cf96f7bdcc7"
+version = "3.13.4+2"
 
 [[deps.IrrationalConstants]]
 git-tree-sha1 = "7fd44fd4ff43fc60815f8e764c0f352b83c49151"
@@ -1029,17 +1106,53 @@ git-tree-sha1 = "3c837543ddb02250ef42f4738347454f95079d4e"
 uuid = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 version = "0.21.3"
 
+[[deps.JSONSchema]]
+deps = ["HTTP", "JSON", "URIs"]
+git-tree-sha1 = "2f49f7f86762a0fbbeef84912265a1ae61c4ef80"
+uuid = "7d188eb4-7ad8-530c-ae41-71a32a6d4692"
+version = "0.3.4"
+
 [[deps.JpegTurbo_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "b53380851c6e6664204efb2e62cd24fa5c47e4ba"
 uuid = "aacddb02-875f-59d6-b918-886e6ef4fbf8"
 version = "2.1.2+0"
 
+[[deps.JuMP]]
+deps = ["Calculus", "DataStructures", "ForwardDiff", "JSON", "LinearAlgebra", "MathOptInterface", "MutableArithmetics", "NaNMath", "Printf", "Random", "SparseArrays", "SpecialFunctions", "Statistics"]
+git-tree-sha1 = "4358b7cbf2db36596bdbbe3becc6b9d87e4eb8f5"
+uuid = "4076af6c-e467-56ae-b986-b466b2749572"
+version = "0.21.10"
+
 [[deps.JuliaFormatter]]
 deps = ["CSTParser", "CommonMark", "DataStructures", "Pkg", "Tokenize"]
 git-tree-sha1 = "e7092df00019dab7ab81154df576c975fa6e47a3"
 uuid = "98e50ef6-434e-11e9-1051-2b60c6c9e899"
 version = "0.18.1"
+
+[[deps.KLU]]
+deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
+git-tree-sha1 = "cae5e3dfd89b209e01bcd65b3a25e74462c67ee0"
+uuid = "ef3ab10e-7fda-4108-b977-705223b18434"
+version = "0.3.0"
+
+[[deps.KernelDensity]]
+deps = ["Distributions", "DocStringExtensions", "FFTW", "Interpolations", "StatsBase"]
+git-tree-sha1 = "591e8dc09ad18386189610acafb970032c519707"
+uuid = "5ab0869b-81aa-558d-bb23-cbf5423bbe9b"
+version = "0.6.3"
+
+[[deps.Krylov]]
+deps = ["LinearAlgebra", "Printf", "SparseArrays"]
+git-tree-sha1 = "a024280a69c49f51ba29d2deb66f07508f0b9b49"
+uuid = "ba0b0d4f-ebba-5204-a429-3ac8c609bfb7"
+version = "0.7.13"
+
+[[deps.KrylovKit]]
+deps = ["LinearAlgebra", "Printf"]
+git-tree-sha1 = "0328ad9966ae29ccefb4e1b9bfd8c8867e4360df"
+uuid = "0b1a1467-8014-51b9-945f-bf0ae24f4b77"
+version = "0.5.3"
 
 [[deps.LAME_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1052,6 +1165,18 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "bf36f528eec6634efc60d7ec062008f171071434"
 uuid = "88015f11-f218-50d7-93a8-a6af411a945d"
 version = "3.0.0+1"
+
+[[deps.LLVM]]
+deps = ["CEnum", "LLVMExtra_jll", "Libdl", "Printf", "Unicode"]
+git-tree-sha1 = "302e6cfb8d83ba7a9658d7d51725620fa9db8702"
+uuid = "929cbde3-209d-540e-8aea-75f648917ca0"
+version = "4.9.0"
+
+[[deps.LLVMExtra_jll]]
+deps = ["Artifacts", "JLLWrappers", "LazyArtifacts", "Libdl", "Pkg"]
+git-tree-sha1 = "5558ad3c8972d602451efe9d81c78ec14ef4f5ef"
+uuid = "dad2f222-ce93-54a1-a47d-0025e8a3acab"
+version = "0.0.14+2"
 
 [[deps.LZO_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1072,15 +1197,48 @@ version = "1.8.0"
 
 [[deps.Latexify]]
 deps = ["Formatting", "InteractiveUtils", "LaTeXStrings", "MacroTools", "Markdown", "Printf", "Requires"]
-git-tree-sha1 = "a6552bfeab40de157a297d84e03ade4b8177677f"
+git-tree-sha1 = "4f00cc36fede3c04b8acf9b2e2763decfdcecfa6"
 uuid = "23fbe1c1-3f47-55db-b15f-69d7ec21a316"
-version = "0.15.12"
+version = "0.15.13"
+
+[[deps.LatinHypercubeSampling]]
+deps = ["Random", "StableRNGs", "StatsBase", "Test"]
+git-tree-sha1 = "42938ab65e9ed3c3029a8d2c58382ca75bdab243"
+uuid = "a5e1c1ea-c99a-51d3-a14d-a9a37257b02d"
+version = "1.8.0"
+
+[[deps.LatticeRules]]
+deps = ["Random"]
+git-tree-sha1 = "7f5b02258a3ca0221a6a9710b0a0a2e8fb4957fe"
+uuid = "73f95e8e-ec14-4e6a-8b18-0d2e271c4e55"
+version = "0.0.1"
 
 [[deps.LayoutPointers]]
 deps = ["ArrayInterface", "LinearAlgebra", "ManualMemory", "SIMDTypes", "Static"]
 git-tree-sha1 = "b651f573812d6c36c22c944dd66ef3ab2283dfa1"
 uuid = "10f19ff3-798f-405d-979b-55457f8fc047"
 version = "0.1.6"
+
+[[deps.LazyArrays]]
+deps = ["ArrayLayouts", "FillArrays", "LinearAlgebra", "MacroTools", "MatrixFactorizations", "SparseArrays", "StaticArrays"]
+git-tree-sha1 = "e20371e416fd9e7cac1963b024b2243d3d36c03a"
+uuid = "5078a376-72f3-5289-bfd5-ec5146d43c02"
+version = "0.22.5"
+
+[[deps.LazyArtifacts]]
+deps = ["Artifacts", "Pkg"]
+uuid = "4af54fe1-eca0-43a8-85a7-787d91b784e3"
+
+[[deps.LazyBandedMatrices]]
+deps = ["ArrayLayouts", "BandedMatrices", "BlockArrays", "BlockBandedMatrices", "FillArrays", "LazyArrays", "LinearAlgebra", "MatrixFactorizations", "SparseArrays", "StaticArrays"]
+git-tree-sha1 = "8f4c427f6b505294dfefd343c8373b8c74e09973"
+uuid = "d7e5e226-e90b-4449-9968-0f923699bf6f"
+version = "0.7.6"
+
+[[deps.LearnBase]]
+git-tree-sha1 = "a0d90569edd490b82fdc4dc078ea54a5a800d30a"
+uuid = "7f8f8fb0-2700-5f03-b4bd-41f8cfc144b6"
+version = "0.4.1"
 
 [[deps.LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]
@@ -1165,11 +1323,17 @@ version = "7.1.1"
 deps = ["Libdl", "libblastrampoline_jll"]
 uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 
+[[deps.LinearSolve]]
+deps = ["ArrayInterface", "DocStringExtensions", "IterativeSolvers", "KLU", "Krylov", "KrylovKit", "LinearAlgebra", "RecursiveFactorization", "Reexport", "Requires", "SciMLBase", "Setfield", "SparseArrays", "SuiteSparse", "UnPack"]
+git-tree-sha1 = "a25bc80647e44d0e1e1694b47000603497700b18"
+uuid = "7ed4a6bd-45f5-4d41-b270-4a48e9bafcae"
+version = "1.13.0"
+
 [[deps.LogExpFunctions]]
 deps = ["ChainRulesCore", "ChangesOfVariables", "DocStringExtensions", "InverseFunctions", "IrrationalConstants", "LinearAlgebra"]
-git-tree-sha1 = "e5718a00af0ab9756305a0392832c8952c7426c1"
+git-tree-sha1 = "3f7cb7157ef860c637f3f4929c8ed5d9716933c6"
 uuid = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
-version = "0.3.6"
+version = "0.3.7"
 
 [[deps.Logging]]
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
@@ -1179,6 +1343,30 @@ deps = ["ArrayInterface", "CPUSummary", "ChainRulesCore", "CloseOpenIntervals", 
 git-tree-sha1 = "67c0dfeae307972b50009ce220aae5684ea852d1"
 uuid = "bdcacae8-1622-11e9-2a5c-532679323890"
 version = "0.12.101"
+
+[[deps.LsqFit]]
+deps = ["Distributions", "ForwardDiff", "LinearAlgebra", "NLSolversBase", "OptimBase", "Random", "StatsBase"]
+git-tree-sha1 = "91aa1442e63a77f101aff01dec5a821a17f43922"
+uuid = "2fda8390-95c7-5789-9bda-21331edee243"
+version = "0.12.1"
+
+[[deps.METIS_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "1d31872bb9c5e7ec1f618e8c4a56c8b0d9bddc7e"
+uuid = "d00139f3-1899-568f-a2f0-47f597d42d70"
+version = "5.1.1+0"
+
+[[deps.MKL_jll]]
+deps = ["Artifacts", "IntelOpenMP_jll", "JLLWrappers", "LazyArtifacts", "Libdl", "Pkg"]
+git-tree-sha1 = "e595b205efd49508358f7dc670a940c790204629"
+uuid = "856f044c-d86e-5d09-b602-aeab76dc8ba7"
+version = "2022.0.0+0"
+
+[[deps.MUMPS_seq_jll]]
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "METIS_jll", "OpenBLAS32_jll", "Pkg"]
+git-tree-sha1 = "1a11a84b2af5feb5a62a820574804056cdc59c39"
+uuid = "d7ed1dd3-d0ae-5e8e-bfb4-87a502085b8d"
+version = "5.2.1+4"
 
 [[deps.MacroTools]]
 deps = ["Markdown", "Random"]
@@ -1194,6 +1382,24 @@ version = "0.1.8"
 [[deps.Markdown]]
 deps = ["Base64"]
 uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
+
+[[deps.MathOptInterface]]
+deps = ["BenchmarkTools", "CodecBzip2", "CodecZlib", "JSON", "JSONSchema", "LinearAlgebra", "MutableArithmetics", "OrderedCollections", "SparseArrays", "Test", "Unicode"]
+git-tree-sha1 = "575644e3c05b258250bb599e57cf73bbf1062901"
+uuid = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
+version = "0.9.22"
+
+[[deps.MathProgBase]]
+deps = ["LinearAlgebra", "SparseArrays"]
+git-tree-sha1 = "9abbe463a1e9fc507f12a69e7f29346c2cdc472c"
+uuid = "fdba3010-5040-5b88-9595-932c9decdf73"
+version = "0.7.8"
+
+[[deps.MatrixFactorizations]]
+deps = ["ArrayLayouts", "LinearAlgebra", "Printf", "Random"]
+git-tree-sha1 = "1a0358d0283b84c3ccf9537843e3583c3b896c59"
+uuid = "a3b82374-2e81-5b9e-98ce-41277c0e4c87"
+version = "0.8.5"
 
 [[deps.MbedTLS]]
 deps = ["Dates", "MbedTLS_jll", "Random", "Sockets"]
@@ -1269,6 +1475,12 @@ git-tree-sha1 = "019f12e9a1a7880459d0173c182e6a99365d7ac1"
 uuid = "2774e3e8-f4cf-5e23-947b-6d7e65073b56"
 version = "4.5.1"
 
+[[deps.NNlib]]
+deps = ["Adapt", "ChainRulesCore", "Compat", "LinearAlgebra", "Pkg", "Requires", "Statistics"]
+git-tree-sha1 = "a59a614b8b4ea6dc1dcec8c6514e251f13ccbe10"
+uuid = "872c559c-99b0-510c-b3b7-b6c96a88d5cd"
+version = "0.8.4"
+
 [[deps.NaNMath]]
 git-tree-sha1 = "b086b7ea07f8e38cf122f5016af580881ac914fe"
 uuid = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
@@ -1283,6 +1495,12 @@ git-tree-sha1 = "4e5ee038e5655c8aaa9ac179743c5227d1f0f0f3"
 uuid = "8913a72c-1f9b-4ce2-8d82-65094dcecaec"
 version = "0.3.15"
 
+[[deps.ObjectFile]]
+deps = ["Reexport", "StructIO"]
+git-tree-sha1 = "55ce61d43409b1fb0279d1781bf3b0f22c83ab3b"
+uuid = "d8793406-e978-5875-9003-1fc021f44a92"
+version = "0.3.7"
+
 [[deps.OffsetArrays]]
 deps = ["Adapt"]
 git-tree-sha1 = "043017e0bdeff61cfbb7afeb558ab29536bbb5ed"
@@ -1294,6 +1512,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "887579a3eb005446d514ab7aeac5d1d027658b8f"
 uuid = "e7412a2a-1a6e-54c0-be00-318e2571c051"
 version = "1.3.5+1"
+
+[[deps.OpenBLAS32_jll]]
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Pkg"]
+git-tree-sha1 = "9c6c2ed4b7acd2137b878eb96c68e63b76199d0f"
+uuid = "656ef2d0-ae68-5445-9ca0-591084a874a2"
+version = "0.3.17+0"
 
 [[deps.OpenBLAS_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
@@ -1314,6 +1538,18 @@ deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Pk
 git-tree-sha1 = "13652491f6856acfd2db29360e1bbcd4565d04f1"
 uuid = "efe28fd5-8261-553b-a9e1-b2916fc3738e"
 version = "0.5.5+0"
+
+[[deps.Optim]]
+deps = ["Compat", "FillArrays", "ForwardDiff", "LineSearches", "LinearAlgebra", "NLSolversBase", "NaNMath", "Parameters", "PositiveFactorizations", "Printf", "SparseArrays", "StatsBase"]
+git-tree-sha1 = "bc0a748740e8bc5eeb9ea6031e6f050de1fc0ba2"
+uuid = "429524aa-4258-5aef-a3af-852621145aeb"
+version = "1.6.2"
+
+[[deps.OptimBase]]
+deps = ["NLSolversBase", "Printf", "Reexport"]
+git-tree-sha1 = "9cb1fee807b599b5f803809e85c81b582d2009d6"
+uuid = "87e2bd06-a317-5318-96d9-3ecbac512eee"
+version = "2.0.2"
 
 [[deps.Opus_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1352,9 +1588,15 @@ version = "0.12.3"
 
 [[deps.Parsers]]
 deps = ["Dates"]
-git-tree-sha1 = "13468f237353112a01b2d6b32f3d0f80219944aa"
+git-tree-sha1 = "85b5da0fa43588c75bb1ff986493443f821c70b7"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "2.2.2"
+version = "2.2.3"
+
+[[deps.PenaltyFunctions]]
+deps = ["InteractiveUtils", "LearnBase", "LinearAlgebra", "RecipesBase"]
+git-tree-sha1 = "527c6a8d602f3160957d80696ab792f6e690f231"
+uuid = "06bb1623-fdd5-5ca2-a01c-88eae3ea319e"
+version = "0.2.1"
 
 [[deps.Pixman_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
@@ -1386,9 +1628,9 @@ version = "1.26.0"
 
 [[deps.PlutoUI]]
 deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "Markdown", "Random", "Reexport", "UUIDs"]
-git-tree-sha1 = "85bf3e4bd279e405f91489ce518dedb1e32119cb"
+git-tree-sha1 = "2c87c85e397b7ffed5ffec054f532d4edd05d901"
 uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
-version = "0.7.35"
+version = "0.7.36"
 
 [[deps.PoissonRandom]]
 deps = ["Random", "Statistics", "Test"]
@@ -1408,6 +1650,12 @@ git-tree-sha1 = "7e597df97e46ffb1c8adbaddfa56908a7a20194b"
 uuid = "1d0040c9-8b98-4ee7-8388-3f51789ca0ad"
 version = "0.1.5"
 
+[[deps.PositiveFactorizations]]
+deps = ["LinearAlgebra"]
+git-tree-sha1 = "17275485f373e6673f7e7f97051f703ed5b15b20"
+uuid = "85a6dd25-e78a-55b7-8502-1745935b8125"
+version = "0.2.4"
+
 [[deps.PreallocationTools]]
 deps = ["Adapt", "ArrayInterface", "ForwardDiff", "LabelledArrays"]
 git-tree-sha1 = "6c138c8510111fa47b5d2ed8ada482d97e279bee"
@@ -1424,6 +1672,10 @@ version = "1.2.4"
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
+[[deps.Profile]]
+deps = ["Printf"]
+uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
+
 [[deps.Qt5Base_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Fontconfig_jll", "Glib_jll", "JLLWrappers", "Libdl", "Libglvnd_jll", "OpenSSL_jll", "Pkg", "Xorg_libXext_jll", "Xorg_libxcb_jll", "Xorg_xcb_util_image_jll", "Xorg_xcb_util_keysyms_jll", "Xorg_xcb_util_renderutil_jll", "Xorg_xcb_util_wm_jll", "Zlib_jll", "xkbcommon_jll"]
 git-tree-sha1 = "ad368663a5e20dbb8d6dc2fddeefe4dae0781ae8"
@@ -1436,6 +1688,12 @@ git-tree-sha1 = "78aadffb3efd2155af139781b8a8df1ef279ea39"
 uuid = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
 version = "2.4.2"
 
+[[deps.QuasiMonteCarlo]]
+deps = ["Distributions", "LatinHypercubeSampling", "LatticeRules", "Sobol"]
+git-tree-sha1 = "bc69c718a83951dcb999404ff267a7b8c39c1c63"
+uuid = "8a4e6c94-4038-4cdc-81c3-7e6ffdb2a71b"
+version = "0.2.4"
+
 [[deps.REPL]]
 deps = ["InteractiveUtils", "Markdown", "Sockets", "Unicode"]
 uuid = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
@@ -1444,11 +1702,29 @@ uuid = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 deps = ["SHA", "Serialization"]
 uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
+[[deps.Random123]]
+deps = ["Random", "RandomNumbers"]
+git-tree-sha1 = "afeacaecf4ed1649555a19cb2cad3c141bbc9474"
+uuid = "74087812-796a-5b5d-8853-05524746bad3"
+version = "1.5.0"
+
 [[deps.RandomNumbers]]
 deps = ["Random", "Requires"]
 git-tree-sha1 = "043da614cc7e95c703498a491e2c21f58a2b8111"
 uuid = "e6cf234a-135c-5ec9-84dd-332b85af5143"
 version = "1.5.3"
+
+[[deps.Ratios]]
+deps = ["Requires"]
+git-tree-sha1 = "dc84268fe0e3335a62e315a3a7cf2afa7178a734"
+uuid = "c84ed2f1-dad5-54f0-aa8e-dbefe2724439"
+version = "0.4.3"
+
+[[deps.RealDot]]
+deps = ["LinearAlgebra"]
+git-tree-sha1 = "9f0a1b71baaf7650f4fa8a1d168c7fb6ee41f0c9"
+uuid = "c1ae055f-0cd5-4b69-90a6-9a35b1a98df9"
+version = "0.1.0"
 
 [[deps.RecipesBase]]
 git-tree-sha1 = "6bf3f380ff52ce0832ddd3a2a7b9538ed1bcca7d"
@@ -1495,6 +1771,18 @@ deps = ["UUIDs"]
 git-tree-sha1 = "838a3a4188e2ded87a4f9f184b4b0d78a1e91cb7"
 uuid = "ae029012-a4dd-5104-9daa-d747884805df"
 version = "1.3.0"
+
+[[deps.ResettableStacks]]
+deps = ["StaticArrays"]
+git-tree-sha1 = "256eeeec186fa7f26f2801732774ccf277f05db9"
+uuid = "ae5879a3-cd67-5da8-be7f-38c6eb64a37b"
+version = "1.1.1"
+
+[[deps.ReverseDiff]]
+deps = ["ChainRulesCore", "DiffResults", "DiffRules", "ForwardDiff", "FunctionWrappers", "LinearAlgebra", "LogExpFunctions", "MacroTools", "NaNMath", "Random", "SpecialFunctions", "StaticArrays", "Statistics"]
+git-tree-sha1 = "8d85c98fc33d4d37d88c8f9ccee4f1f3f98e56f4"
+uuid = "37e2e3b7-166d-5795-8a7a-e32c996b4267"
+version = "1.12.0"
 
 [[deps.Rmath]]
 deps = ["Random", "Rmath_jll"]
@@ -1577,6 +1865,12 @@ git-tree-sha1 = "5d7e3f4e11935503d3ecaf7186eac40602e7d231"
 uuid = "699a6c99-e7fa-54fc-8d76-47d257e15c1d"
 version = "0.9.4"
 
+[[deps.Sobol]]
+deps = ["DelimitedFiles", "Random"]
+git-tree-sha1 = "5a74ac22a9daef23705f010f72c81d6925b19df8"
+uuid = "ed01d8cd-4d21-5b2a-85b4-cc3bdc58bad4"
+version = "1.5.0"
+
 [[deps.Sockets]]
 uuid = "6462fe0b-24de-5631-8697-dd941f90decc"
 
@@ -1607,6 +1901,12 @@ deps = ["Setfield", "Test"]
 git-tree-sha1 = "39c9f91521de844bad65049efd4f9223e7ed43f9"
 uuid = "171d559e-b47b-412a-8079-5efa626c420e"
 version = "0.1.14"
+
+[[deps.StableRNGs]]
+deps = ["Random", "Test"]
+git-tree-sha1 = "3be7d49667040add7ee151fefaf1f8c04c8c8276"
+uuid = "860ef19b-820b-49d6-a774-d7a799459cd3"
+version = "1.0.0"
 
 [[deps.Static]]
 deps = ["IfElse"]
@@ -1648,6 +1948,12 @@ git-tree-sha1 = "3e057e1f9f12d18cac32011aed9e61eef6c1c0ce"
 uuid = "9672c7b4-1e72-59bd-8a11-6ac3964bc41f"
 version = "1.6.6"
 
+[[deps.StochasticDiffEq]]
+deps = ["Adapt", "ArrayInterface", "DataStructures", "DiffEqBase", "DiffEqJump", "DiffEqNoiseProcess", "DocStringExtensions", "FillArrays", "FiniteDiff", "ForwardDiff", "LinearAlgebra", "Logging", "MuladdMacro", "NLsolve", "OrdinaryDiffEq", "Random", "RandomNumbers", "RecursiveArrayTools", "Reexport", "SparseArrays", "SparseDiffTools", "StaticArrays", "UnPack"]
+git-tree-sha1 = "dd2043c1d182e11abf1b33e699dc3856e4663a54"
+uuid = "789caeaf-c7a9-5a7d-9973-96adeb23e2a0"
+version = "6.42.0"
+
 [[deps.StrideArraysCore]]
 deps = ["ArrayInterface", "CloseOpenIntervals", "IfElse", "LayoutPointers", "ManualMemory", "Requires", "SIMDTypes", "Static", "ThreadingUtilities"]
 git-tree-sha1 = "49d616ef230fec080d02ada0ca5639e652cca06b"
@@ -1660,9 +1966,19 @@ git-tree-sha1 = "57617b34fa34f91d536eb265df67c2d4519b8b98"
 uuid = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
 version = "0.6.5"
 
+[[deps.StructIO]]
+deps = ["Test"]
+git-tree-sha1 = "010dc73c7146869c042b49adcdb6bf528c12e859"
+uuid = "53d494c1-5632-5724-8f4c-31dff12d585f"
+version = "0.3.0"
+
 [[deps.SuiteSparse]]
 deps = ["Libdl", "LinearAlgebra", "Serialization", "SparseArrays"]
 uuid = "4607b0f0-06f3-5cda-b6b1-a6196a1729e9"
+
+[[deps.SuiteSparse_jll]]
+deps = ["Artifacts", "Libdl", "Pkg", "libblastrampoline_jll"]
+uuid = "bea87d4a-7f5b-5778-9afe-8cc45184846c"
 
 [[deps.SymbolicUtils]]
 deps = ["AbstractTrees", "Bijections", "ChainRulesCore", "Combinatorics", "ConstructionBase", "DataStructures", "DocStringExtensions", "DynamicPolynomials", "IfElse", "LabelledArrays", "LinearAlgebra", "MultivariatePolynomials", "NaNMath", "Setfield", "SparseArrays", "SpecialFunctions", "StaticArrays", "TermInterface", "TimerOutputs"]
@@ -1687,10 +2003,10 @@ uuid = "3783bdb8-4a98-5b6b-af9a-565f29a5fe9c"
 version = "1.0.1"
 
 [[deps.Tables]]
-deps = ["DataAPI", "DataValueInterfaces", "IteratorInterfaceExtensions", "LinearAlgebra", "TableTraits", "Test"]
-git-tree-sha1 = "bb1064c9a84c52e277f1096cf41434b675cd368b"
+deps = ["DataAPI", "DataValueInterfaces", "IteratorInterfaceExtensions", "LinearAlgebra", "OrderedCollections", "TableTraits", "Test"]
+git-tree-sha1 = "5ce79ce186cc678bbb5c5681ca3379d1ddae11a1"
 uuid = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
-version = "1.6.1"
+version = "1.7.0"
 
 [[deps.Tar]]
 deps = ["ArgTools", "SHA"]
@@ -1728,11 +2044,28 @@ git-tree-sha1 = "0952c9cee34988092d73a5708780b3917166a0dd"
 uuid = "0796e94c-ce3b-5d07-9a54-7f471281c624"
 version = "0.5.21"
 
+[[deps.Tracker]]
+deps = ["Adapt", "DiffRules", "ForwardDiff", "LinearAlgebra", "LogExpFunctions", "MacroTools", "NNlib", "NaNMath", "Printf", "Random", "Requires", "SpecialFunctions", "Statistics"]
+git-tree-sha1 = "0874c1b5de1b5529b776cfeca3ec0acfada97b1b"
+uuid = "9f7883ad-71c0-57eb-9f7f-b5c9e6d3789c"
+version = "0.2.20"
+
+[[deps.TranscodingStreams]]
+deps = ["Random", "Test"]
+git-tree-sha1 = "216b95ea110b5972db65aa90f88d8d89dcb8851c"
+uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
+version = "0.9.6"
+
 [[deps.Transducers]]
 deps = ["Adapt", "ArgCheck", "BangBang", "Baselet", "CompositionsBase", "DefineSingletons", "Distributed", "InitialValues", "Logging", "Markdown", "MicroCollections", "Requires", "Setfield", "SplittablesBase", "Tables"]
-git-tree-sha1 = "1cda71cc967e3ef78aa2593319f6c7379376f752"
+git-tree-sha1 = "c76399a3bbe6f5a88faa33c8f8a65aa631d95013"
 uuid = "28d57a85-8fef-5791-bfe6-a80928e7c999"
-version = "0.4.72"
+version = "0.4.73"
+
+[[deps.Trapz]]
+git-tree-sha1 = "79eb0ed763084a3e7de81fe1838379ac6a23b6a0"
+uuid = "592b5752-818d-11e9-1e9a-2b8ca4a44cd1"
+version = "2.0.3"
 
 [[deps.TreeViews]]
 deps = ["Test"]
@@ -1803,6 +2136,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "4528479aa01ee1b3b4cd0e6faef0e04cf16466da"
 uuid = "2381bf8a-dfd0-557d-9999-79630e7b1b91"
 version = "1.25.0+0"
+
+[[deps.WoodburyMatrices]]
+deps = ["LinearAlgebra", "SparseArrays"]
+git-tree-sha1 = "de67fa59e33ad156a590055375a30b23c40299d3"
+uuid = "efce3f68-66dc-5838-9240-27a6d6f5f9b6"
+version = "0.5.5"
 
 [[deps.XML2_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Libiconv_jll", "Pkg", "Zlib_jll"]
@@ -1952,6 +2291,12 @@ git-tree-sha1 = "e45044cd873ded54b6a5bac0eb5c971392cf1927"
 uuid = "3161d3a3-bdf6-5164-811a-617609db77b4"
 version = "1.5.2+0"
 
+[[deps.Zygote]]
+deps = ["AbstractFFTs", "ChainRules", "ChainRulesCore", "DiffRules", "Distributed", "FillArrays", "ForwardDiff", "IRTools", "InteractiveUtils", "LinearAlgebra", "MacroTools", "NaNMath", "Random", "Requires", "SparseArrays", "SpecialFunctions", "Statistics", "ZygoteRules"]
+git-tree-sha1 = "93285d2877f1f1b09b2a2b029f90e9db10127022"
+uuid = "e88e6eb3-aa80-5325-afca-941959d7151f"
+version = "0.6.35"
+
 [[deps.ZygoteRules]]
 deps = ["MacroTools"]
 git-tree-sha1 = "8c1a8e4dfacb1fd631745552c8db35d0deb09ea0"
@@ -2014,60 +2359,29 @@ version = "0.9.1+5"
 """
 
 # ╔═╡ Cell order:
-# ╠═9bfd796b-35a6-4001-9ee8-ff283e713461
-# ╟─e8175462-9bbf-11ec-3a58-0f114bb6cd58
-# ╟─e791cb5f-1d4e-4b4e-987d-fd280cdfb868
-# ╟─7ba2b752-c939-4e06-afa0-e0385b121282
-# ╟─e4c7b17f-0399-43c1-9f1a-4a49538280f5
-# ╟─14ead89c-7958-4320-98fb-a4ad6a2b29a2
-# ╟─6b3fb59a-69ab-4f26-85a4-44c9140c746b
-# ╠═e2c3c85f-3652-42de-8c3c-8df5290a6180
-# ╠═d393d540-b31c-4e01-a288-b665ef30726a
-# ╠═48d35dce-fbc7-4eea-9c9c-31dbc0a5bd71
-# ╠═756dd82e-bf02-4d09-9ff0-c5ce7a79fefd
-# ╠═162267ad-e874-4e3a-8cc6-0bd317a07386
-# ╟─0d5a463f-f621-4460-b385-6550449874e7
-# ╠═c4154cc3-c543-4355-b343-a7ec79d03988
-# ╠═9858a01d-3bb7-4735-ae1c-de19c884b4fc
-# ╠═529aa903-dd50-4b84-ba9b-028d20135c04
-# ╟─5a4a31cc-5bdf-4610-bdc4-713735f8395b
-# ╠═8e3acf8c-f32c-422c-9a01-c7881a6d41a6
-# ╟─638db2d2-cf26-46f8-a77e-36f76627263c
-# ╠═b13b68e7-9540-4bb2-b26e-d6efd86608a3
-# ╟─348a2244-9ef2-4d3c-8af6-5ab4c1ef427e
-# ╠═ac4833a0-194e-46f1-97af-7245e6a29f77
-# ╟─d0b4f6f5-7048-4579-af33-5aed1e161acc
-# ╠═d7b29969-fbb5-4fca-a78e-b3dd4cc058e0
-# ╟─1ec6c301-b90c-4030-a853-7db1b1d8dabf
-# ╟─d2440064-c8c1-4627-99ab-b27f6b83c909
-# ╠═bc36827b-b968-41fc-8302-58a3663fbf3a
-# ╟─44503314-f126-4903-9ef5-010e2a70f053
-# ╠═4430dcd3-474c-42c6-a4c9-9b41b45fd17a
-# ╟─2dfebbff-3d71-48e0-883b-020e13f38c14
-# ╠═332dec4f-c942-403a-b86e-d7829e6810ae
-# ╠═ae4b44cb-5ce0-49cc-9e4b-3067fd03afae
-# ╠═2ada1933-4cb2-43fc-8569-dc33a53340c0
-# ╠═a8dc1660-8977-4ad9-88e0-ba29d01eec0b
-# ╠═48f8da36-97f1-498f-b585-fe6a32f801cb
-# ╟─3e99fb45-cbac-4a4d-a608-ecc54605e410
-# ╠═bc1fcf93-7877-433c-86d7-0e21d2925b51
-# ╠═865fe978-0f4e-4fca-b9e4-382032996f4b
-# ╠═806c8f47-d66d-4755-960a-0201e15cd940
-# ╟─d8bb862b-548b-4454-bc23-c2aaf5d5368e
-# ╠═29aa55b2-8d11-4bf0-afbe-8c381fcbc291
-# ╟─2de1b351-cd94-4554-80ca-50f2516d2be2
-# ╠═bc17b9c0-c837-4bb2-8191-963b00feb32e
-# ╠═6b672051-6192-443e-a2f7-e886a03b4861
-# ╠═7e7d2cb1-f58d-45ee-b650-0a62c0e70689
-# ╟─77732289-c2bd-490f-9313-32c4c2b6e298
-# ╠═bfc1381e-17cd-4f89-bd35-a72e8c69948e
-# ╟─4dee52c6-e683-45bd-964d-f43f265601f1
-# ╠═4c31745b-6e98-4a56-8925-2fc8c0379dab
-# ╠═36b6da5e-4576-4704-8cd8-5a960c367b8d
-# ╠═2540e729-9a04-45db-8570-ac2f310ac869
-# ╠═29c0211b-965f-4dc8-8310-5e618a22219d
-# ╟─fc7deb80-bfe6-4d3c-8eb5-92cf116668a1
-# ╠═8c7ae698-b517-4978-a109-188be87ee90d
-# ╠═dd76e380-f5eb-4d6c-8fb8-64f7d2ccf919
+# ╠═2e0481fb-fbe2-4247-a532-4d5e48577e1d
+# ╟─3d1ad2a6-9e43-11ec-10e7-a1ee1b96d8b7
+# ╟─0652e329-01b8-4087-9c15-f3692244ce75
+# ╟─d0946918-96d5-4ef2-953b-b323f7a8b7bb
+# ╠═0a879b62-3b5d-4cc7-bd57-c5446c15ea67
+# ╟─9eebc5eb-3765-4e54-a842-39e3b6bbca26
+# ╟─af8a5001-c7ed-4e31-a032-a4511f75fb7e
+# ╟─d2c6c608-d99e-4443-82ba-465505a27c5f
+# ╟─da52e3ac-e7d1-4c76-818a-9ecca78a63a7
+# ╠═3d7c0527-5176-4a35-b4ee-dfe09ba34c4c
+# ╟─f5b3757f-3806-46cd-a36d-416380207364
+# ╠═7ce245b4-22bf-4e2c-932f-6cf5b4ed518a
+# ╟─b1f0a9cf-f121-4827-a350-0e15ef1584db
+# ╠═ab928772-4f3a-4462-bc77-4ee9cf313257
+# ╠═ea397048-b722-4ee1-935e-46ec4207bc0d
+# ╠═ca66247d-22c1-43b0-a8e5-5137b9352db6
+# ╠═b2912566-de69-429b-a191-8696897b0dd3
+# ╠═55053a59-3cad-40d3-9ab3-36ecd87e5036
+# ╠═ae43c4bf-5500-4b0b-8a0f-d45ba27b2ea1
+# ╠═309afb6f-a0de-4492-8e35-3c8b29c2e378
+# ╠═c4d36aba-2b47-4580-a42c-210b941c6a1b
+# ╟─94e632cf-db22-4dea-a478-84d4c8e39269
+# ╠═6d0f2aa8-13b6-425e-a896-10324d7a5042
+# ╠═36af75cf-3360-4f2f-85f8-f514d46153fc
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
