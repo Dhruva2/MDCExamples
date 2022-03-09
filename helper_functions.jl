@@ -1,10 +1,11 @@
-# using MinimallyDisruptiveCurves, Zygote, DiffEqSensitivity, QuadGK, Dierckx, JuMP, Ipopt
+using MinimallyDisruptiveCurves, DiffEqSensitivity, QuadGK, Dierckx, JuMP, Ipopt
 
 """
 To do:
 
 see if gradients work better if jacobian is defined in the ODE of the model itself. (do this with modelingotolkit)
 """
+
 
 
 function run_transformations(tr_array, od, ic, ps)
@@ -84,8 +85,8 @@ function sparse_init_dir(hessian; orthogonal_to = nothing, λ = 1.0, start = ran
     n = size(hessian)[1]
     model = Model(Ipopt.Optimizer)
     JuMP.set_silent(model)
-    @variable(model, x[1:n])
-    @variable(model, z[1:n])
+    JuMP.@variable(model, x[1:n])
+    JuMP.@variable(model, z[1:n])
     for i = 1:n
         set_start_value(x[i], start[i])
     end
