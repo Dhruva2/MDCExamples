@@ -1,30 +1,38 @@
 ### A Pluto.jl notebook ###
-# v0.18.1
+# v0.18.4
 
 using Markdown
 using InteractiveUtils
 
+# This Pluto notebook uses @bind for interactivity. When running this notebook outside of Pluto, the following 'mock version' of @bind gives bound variables a default value (instead of an error).
+macro bind(def, element)
+    quote
+        local iv = try Base.loaded_modules[Base.PkgId(Base.UUID("6e696c72-6542-2067-7265-42206c756150"), "AbstractPlutoDingetjes")].Bonds.initial_value catch; b -> missing; end
+        local el = $(esc(element))
+        global $(esc(def)) = Core.applicable(Base.get, el) ? Base.get(el) : iv(el)
+        el
+    end
+end
+
 # ╔═╡ 9b9cd0f0-9f9b-11ec-3b56-2da755a33a60
-using OrdinaryDiffEq, MinimallyDisruptiveCurves, Plots, LinearAlgebra, DiffEqSensitivity, ModelingToolkit, QuadGK, Dierckx, JuMP, Ipopt
+using OrdinaryDiffEq, MinimallyDisruptiveCurves, Plots, LinearAlgebra, DiffEqSensitivity, ModelingToolkit, JuMP, Ipopt, PlutoUI
 
 # ╔═╡ 8928c71b-fc61-46a4-818a-3a3e2b59cab2
 using ForwardDiff
 
-# ╔═╡ 6068170b-d065-43cd-9717-95387d104704
-include("helper_functions.jl")
-
 # ╔═╡ a2a2abfa-952e-4878-87fe-27667bdb2a88
 begin
 	alg = Vern9 #or eg Tsit5, used for solving ODE
-	solve = OrdinaryDiffEq.solve #because it clashes with JuMP.solve
+	solve = OrdinaryDiffEq.solve; #because it clashes with JuMP.solve
 end
 
 # ╔═╡ 484e33d1-0403-4a29-a9e0-b27f3bff1337
 function CircadianOscillator(input=nothing)
     println("default input is t -> 1.5. If CircadianOscillator() is called with no arguments, the default is used")
-    @variables t
+    
+	ModelingToolkit.@variables t
     D = Differential(t)
-    @variables  M_P(t) M_C(t) M_B(t) P_C(t) C_C(t) P_CP(t) C_CP(t) PC_C(t) PC_N(t) PC_CP(t) PC_NP(t) B_C(t) B_CP(t) B_N(t) B_NP(t) I_N(t)
+    ModelingToolkit.@variables  M_P(t) M_C(t) M_B(t) P_C(t) C_C(t) P_CP(t) C_CP(t) PC_C(t) PC_N(t) PC_CP(t) PC_NP(t) B_C(t) B_CP(t) B_N(t) B_NP(t) I_N(t)
 
     @parameters k_1 k_2 k_3 k_4 k_5 k_6 k_7 k_8 K_AP K_AC K_IB k_dmb k_dmc  k_dmp k_dn  k_dnc K_d K_dp K_p  K_mB K_mC K_mP k_sB k_sC k_sP m n V_1B V_1C V_1P V_1PC V_2B V_2C V_2P V_2PC V_3B V_3PC V_4B V_4PC V_phos v_dBC v_dBN v_dCC v_dIN v_dPC v_dPCC v_dPCN v_mB v_mC v_mP v_sB v_sC # v_sP
 
@@ -107,6 +115,34 @@ p0 = prob.p
 # ╔═╡ 53a8bfac-263b-4359-b388-4dcf7a262321
 hess = ForwardDiff.hessian(cost, p0) |> Symmetric
 
+# ╔═╡ 295d8f97-9f48-43d5-b837-34bf4e1660b4
+function sparse_init_dir(hessian; orthogonal_to = nothing, λ = 1.0, start = randn(size(hessian)[1]), trim_level = 1e-5)
+    n = size(hessian)[1]
+    model = Model(Ipopt.Optimizer)
+    JuMP.set_silent(model)
+    JuMP.@variable(model, x[1:n])
+    JuMP.@variable(model, z[1:n])
+    for i = 1:n
+        set_start_value(x[i], start[i])
+    end
+
+    @objective(model, Min, x' * hessian * x + λ * sum(z))
+    @constraint(model, x' * x == 1.0)
+    @constraint(model, z .>= x)
+    @constraint(model, z .>= -x)
+    if !(orthogonal_to === nothing)
+        for el in orthogonal_to
+            @constraint(model, x' * el == 0)
+        end
+    end
+
+    JuMP.optimize!(model)
+    out = value.(x)
+    out[abs.(out).<trim_level] .= 0
+    val = out' * hessian * out
+    return out, val
+end
+
 # ╔═╡ 25ee0b5c-4fe4-4dd6-984f-d01669e627bb
 begin
 	potential_dirs = [sparse_init_dir(hess)[1] for i = 1:100]
@@ -126,24 +162,38 @@ begin
 	potential_dirs = potential_dirs[setdiff(1:length(potential_dirs), duplicates)];
 end
 
-# ╔═╡ 490c4650-611d-4c22-a91f-3350217380bd
-function get_plot(dirnum)
-    dp0 = potential_dirs[dirnum]
+# ╔═╡ ea328fd2-0de2-49ec-a1bc-cd8fba063241
+md"""
+Select here which of the potential directions you would like to use as your initial direction for the minimally disruptive curve:
+$(@bind which_dir NumberField(0:length(potential_dirs), default=1))
+
+(*Calculating a curve might take a minute or two*)
+"""
+
+# ╔═╡ e496691c-63ab-4695-8451-2638bfff0260
+begin
+	dp0 = potential_dirs[which_dir]
     mom = 1.
     span = (-10.,10.)
-    eprob = MDCProblem(cost, p0, dp0, mom, span);  
-    @time mdc = evolve(eprob, Tsit5);
-    p = disp_mdc(mdc,ps)
-    #savefig(p, "CircadianInjectionMDC_$(dirnum).png")
 end
 
-# ╔═╡ 6fb191cb-933c-4ff5-9df8-71c2b5f11314
-get_plot(1)
+# ╔═╡ bf21afe8-36f7-4f89-82b7-52c660f9ca93
+eprob = MDCProblem(cost, p0, dp0, mom, span); 
+
+# ╔═╡ 72c9f0c2-ecf1-43dc-bcf8-25ed5526a38f
+mdc = evolve(eprob, Tsit5);
+
+# ╔═╡ 7d88b2e9-b17b-4e72-823d-7a7244df8d7d
+begin
+    p1 = plot(mdc; pnames = first.(ps), legend = :bottom)
+    cc = [mdc.cost(el) for el in eachcol(trajectory(mdc))]
+    p2 = plot(distances(mdc), log.(cc), ylabel = "log(cost)", xlabel = "distance", title = "cost over MD curve")
+    plot(p1, p2, layout = (2, 1), size = (1000, 500))
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
-Dierckx = "39dd38d3-220a-591b-8e3c-4c3a8c710a94"
 DiffEqSensitivity = "41bf760c-e81c-5289-8e54-58b1f1f8abe2"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 Ipopt = "b6b21f68-93f8-5de0-b562-5493be1d77c9"
@@ -153,10 +203,9 @@ MinimallyDisruptiveCurves = "c6328df5-4af8-4637-a9e9-78ed74a2ae2b"
 ModelingToolkit = "961ee093-0014-501f-94e3-6117800e7a78"
 OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-QuadGK = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
+PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 
 [compat]
-Dierckx = "~0.5.2"
 DiffEqSensitivity = "~6.70.0"
 ForwardDiff = "~0.10.25"
 Ipopt = "~0.7.0"
@@ -165,7 +214,7 @@ MinimallyDisruptiveCurves = "~0.3.0"
 ModelingToolkit = "~6.7.1"
 OrdinaryDiffEq = "~5.71.0"
 Plots = "~1.26.0"
-QuadGK = "~2.4.2"
+PlutoUI = "~0.7.38"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -186,6 +235,12 @@ deps = ["ChainRulesCore", "LinearAlgebra"]
 git-tree-sha1 = "6f1d9bc1c08f9f4a8fa92e3ea3cb50153a1b40d4"
 uuid = "621f4979-c628-5d54-868e-fcf4e3e8185c"
 version = "1.1.0"
+
+[[deps.AbstractPlutoDingetjes]]
+deps = ["Pkg"]
+git-tree-sha1 = "8eaf9f1b4921132a4cff3f36a1d9ba923b14a481"
+uuid = "6e696c72-6542-2067-7265-42206c756150"
+version = "1.1.4"
 
 [[deps.AbstractTrees]]
 git-tree-sha1 = "03e0550477d86222521d254b741d470ba17ea0b5"
@@ -481,18 +536,6 @@ deps = ["InverseFunctions", "Test"]
 git-tree-sha1 = "80c3e8639e3353e5d2912fb3a1916b8455e2494b"
 uuid = "b429d917-457f-4dbc-8f4c-0cc954292b1d"
 version = "0.4.0"
-
-[[deps.Dierckx]]
-deps = ["Dierckx_jll"]
-git-tree-sha1 = "633c119fcfddf61fb4c75d77ce3ebab552a44723"
-uuid = "39dd38d3-220a-591b-8e3c-4c3a8c710a94"
-version = "0.5.2"
-
-[[deps.Dierckx_jll]]
-deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "6596b96fe1caff3db36415eeb6e9d3b50bfe40ee"
-uuid = "cd4c43a9-7502-52ba-aa6d-59fb2a88580b"
-version = "0.1.0+0"
 
 [[deps.DiffEqBase]]
 deps = ["ArrayInterface", "ChainRulesCore", "DEDataArrays", "DataStructures", "Distributions", "DocStringExtensions", "FastBroadcast", "ForwardDiff", "FunctionWrappers", "IterativeSolvers", "LabelledArrays", "LinearAlgebra", "Logging", "MuladdMacro", "NonlinearSolve", "Parameters", "PreallocationTools", "Printf", "RecursiveArrayTools", "RecursiveFactorization", "Reexport", "Requires", "SciMLBase", "Setfield", "SparseArrays", "StaticArrays", "Statistics", "SuiteSparse", "ZygoteRules"]
@@ -819,6 +862,23 @@ deps = ["DualNumbers", "LinearAlgebra", "SpecialFunctions", "Test"]
 git-tree-sha1 = "65e4589030ef3c44d3b90bdc5aac462b4bb05567"
 uuid = "34004b35-14d8-5ef3-9330-4cdb6864b03a"
 version = "0.3.8"
+
+[[deps.Hyperscript]]
+deps = ["Test"]
+git-tree-sha1 = "8d511d5b81240fc8e6802386302675bdf47737b9"
+uuid = "47d2ed2b-36de-50cf-bf87-49c2cf4b8b91"
+version = "0.0.4"
+
+[[deps.HypertextLiteral]]
+git-tree-sha1 = "2b078b5a615c6c0396c77810d92ee8c6f470d238"
+uuid = "ac1192a8-f4b3-4bfe-ba22-af5b92cd3ab2"
+version = "0.9.3"
+
+[[deps.IOCapture]]
+deps = ["Logging", "Random"]
+git-tree-sha1 = "f7be53659ab06ddc986428d3a9dcc95f6fa6705a"
+uuid = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
+version = "0.2.2"
 
 [[deps.IRTools]]
 deps = ["InteractiveUtils", "MacroTools", "Test"]
@@ -1415,6 +1475,12 @@ deps = ["Base64", "Contour", "Dates", "Downloads", "FFMPEG", "FixedPointNumbers"
 git-tree-sha1 = "23d109aad5d225e945c813c6ebef79104beda955"
 uuid = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 version = "1.26.0"
+
+[[deps.PlutoUI]]
+deps = ["AbstractPlutoDingetjes", "Base64", "ColorTypes", "Dates", "Hyperscript", "HypertextLiteral", "IOCapture", "InteractiveUtils", "JSON", "Logging", "Markdown", "Random", "Reexport", "UUIDs"]
+git-tree-sha1 = "670e559e5c8e191ded66fa9ea89c97f10376bb4c"
+uuid = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
+version = "0.7.38"
 
 [[deps.PoissonRandom]]
 deps = ["Random", "Statistics", "Test"]
@@ -2144,7 +2210,6 @@ version = "0.9.1+5"
 
 # ╔═╡ Cell order:
 # ╠═9b9cd0f0-9f9b-11ec-3b56-2da755a33a60
-# ╠═6068170b-d065-43cd-9717-95387d104704
 # ╠═a2a2abfa-952e-4878-87fe-27667bdb2a88
 # ╟─484e33d1-0403-4a29-a9e0-b27f3bff1337
 # ╠═0fae26a5-2f1e-4f5c-be8b-c1af61f2ba32
@@ -2159,8 +2224,12 @@ version = "0.9.1+5"
 # ╠═8928c71b-fc61-46a4-818a-3a3e2b59cab2
 # ╠═ce3bba18-d261-48c6-8738-e6f4d219157e
 # ╠═53a8bfac-263b-4359-b388-4dcf7a262321
+# ╟─295d8f97-9f48-43d5-b837-34bf4e1660b4
 # ╠═25ee0b5c-4fe4-4dd6-984f-d01669e627bb
-# ╠═490c4650-611d-4c22-a91f-3350217380bd
-# ╠═6fb191cb-933c-4ff5-9df8-71c2b5f11314
+# ╠═ea328fd2-0de2-49ec-a1bc-cd8fba063241
+# ╠═e496691c-63ab-4695-8451-2638bfff0260
+# ╠═bf21afe8-36f7-4f89-82b7-52c660f9ca93
+# ╠═72c9f0c2-ecf1-43dc-bcf8-25ed5526a38f
+# ╠═7d88b2e9-b17b-4e72-823d-7a7244df8d7d
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

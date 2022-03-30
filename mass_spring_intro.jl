@@ -1,5 +1,5 @@
 ### A Pluto.jl notebook ###
-# v0.18.1
+# v0.18.4
 
 using Markdown
 using InteractiveUtils
@@ -399,20 +399,32 @@ The curve is looking for directions that keep the cost low, but it cant find the
 
 # ╔═╡ 8c7ae698-b517-4978-a109-188be87ee90d
 begin
-	summed_cost(mdc2(40.)[:states])
+	summed_cost(mdc2(-24.)[:states])
 end
 
 # ╔═╡ dd76e380-f5eb-4d6c-8fb8-64f7d2ccf919
 begin
-	pp = mdc2(40.)[:states]
+	pp = mdc2(-24.)[:states]
 	mprob = remake(prob2, p = pp)
 	msol = solve(mprob, Tsit5(), saveat=nom_sol2.t)
-	plot(msol)
+	plot(msol, linewidth=3)
 	plot!(nom_sol2)
 end
 
+# ╔═╡ 180828e8-60b7-4e4d-bf06-f6ba04c06358
+distances(mdc2)
+
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
+[compat]
+ForwardDiff = "~0.10.25"
+Latexify = "~0.15.12"
+MinimallyDisruptiveCurves = "~0.3.0"
+ModelingToolkit = "~6.7.1"
+OrdinaryDiffEq = "~5.71.0"
+Plots = "~1.26.0"
+PlutoUI = "~0.7.35"
+
 [deps]
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 Latexify = "23fbe1c1-3f47-55db-b15f-69d7ec21a316"
@@ -423,14 +435,8 @@ OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
 PlutoUI = "7f904dfe-b85e-4ff6-b463-dae2292396a8"
 
-[compat]
-ForwardDiff = "~0.10.25"
-Latexify = "~0.15.12"
-MinimallyDisruptiveCurves = "~0.3.0"
-ModelingToolkit = "~6.7.1"
-OrdinaryDiffEq = "~5.71.0"
-Plots = "~1.26.0"
-PlutoUI = "~0.7.35"
+[extras]
+CPUSummary = "2a0fbf3d-bb9c-48f3-b0a9-814d99fd7ab9"
 """
 
 # ╔═╡ 00000000-0000-0000-0000-000000000002
@@ -2069,5 +2075,6 @@ version = "0.9.1+5"
 # ╟─fc7deb80-bfe6-4d3c-8eb5-92cf116668a1
 # ╠═8c7ae698-b517-4978-a109-188be87ee90d
 # ╠═dd76e380-f5eb-4d6c-8fb8-64f7d2ccf919
+# ╠═180828e8-60b7-4e4d-bf06-f6ba04c06358
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

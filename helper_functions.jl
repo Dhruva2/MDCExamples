@@ -1,4 +1,4 @@
-using MinimallyDisruptiveCurves, DiffEqSensitivity, QuadGK, Dierckx, JuMP, Ipopt
+using MinimallyDisruptiveCurves, DiffEqSensitivity, Dierckx, JuMP, Ipopt
 
 """
 To do:
