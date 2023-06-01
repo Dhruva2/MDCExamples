@@ -73,6 +73,7 @@ This loss isn't usually used for optimisation, i.e. fitting. It's fragile to noi
 
 For MDCs, you **start** at a minimum. If you're fitting to a nominal trajectory, rather than noisy data, that issue also goes. And it's extremely speedy to evaluate / differentiate for large systems....
 
+### 
 """
 
 
@@ -2354,7 +2355,7 @@ version = "1.4.1+0"
 """
 
 # ╔═╡ Cell order:
-# ╠═6687aa64-ae6f-4be2-a4a3-11a02113b9ca
+# ╟─6687aa64-ae6f-4be2-a4a3-11a02113b9ca
 # ╠═927689e7-3b50-4f52-86f7-f9078f09a179
 # ╠═a2a2abfa-952e-4878-87fe-27667bdb2a88
 # ╠═484e33d1-0403-4a29-a9e0-b27f3bff1337

@@ -412,7 +412,11 @@ begin
 end
 
 # ╔═╡ 180828e8-60b7-4e4d-bf06-f6ba04c06358
-distances(mdc2)
+md"""
+## Interpretation
+
+There are no directions, mathematically that give the same response to a sinusoidal forcing term. So the MDC finds a direction that maintains the phase and frequency, while decreasing the amplitude from increased mass. 
+"""
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -2494,6 +2498,6 @@ version = "1.4.1+0"
 # ╟─fc7deb80-bfe6-4d3c-8eb5-92cf116668a1
 # ╠═8c7ae698-b517-4978-a109-188be87ee90d
 # ╠═dd76e380-f5eb-4d6c-8fb8-64f7d2ccf919
-# ╠═180828e8-60b7-4e4d-bf06-f6ba04c06358
+# ╟─180828e8-60b7-4e4d-bf06-f6ba04c06358
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002
