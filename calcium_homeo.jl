@@ -84,17 +84,33 @@ end
 function neuron(g_params)
 
     gNa, gCaS, gCaT, gKa, gKCa, gKd, gH = g_params
-    ics = Dict(:V => -60.0, :Ca => 0.05)
-    reversals = Dict(:ENa => 50.0, :EH => -20.0, :EK => -80.0, :ELeak => -55.0)
-    Area = 0.0628 #mm^2
-    Cm = 10.0 #specific capacitance in nF/mm^2
-    params = Dict(:area => Area, :Cₘ => Cm, :τCa => 200.0, :Ca∞ => 0.05, :Iapp => 0.0)
-    compart = Soma(ics, merge(reversals, params), 0)
-    Liu_conv = Liu_conversion(compart)
+	
+    τCa = 20.0
+	Ca∞ = 0.05
+	fxarea = 14.96 * 0.0628 #ca flux multiplier to get intracellular ca from currents
 
-    stg_neur = [Liu.Na(gNa * Liu_conv), Liu.CaS(gCaS * Liu_conv), Liu.CaT(gCaT * Liu_conv), Liu.Ka(gKa * Liu_conv), Liu.KCa(gKCa * Liu_conv), Liu.Kdr(gKd * Liu_conv), Liu.H(gH * Liu_conv), Liu.Leak(0.01)]
-    neur = build_neuron(compart, stg_neur; name=:neuron)
-    prob = ODEProblem(neur, [], (0.0, 5000.0), [])
+	defaults = Dict(Voltage => BasicVoltageDynamics(),
+    Calcium => Liu.CalciumDynamics(τCa, Ca∞, fxarea), 
+    Reversal{Calcium} => Liu.CaReversalDynamics())
+
+	somatic_parameters = Dict(
+    Reversal{Sodium} => 50.0,
+    Reversal{Potassium} => -80.0,
+    Reversal{Leak} => -50.0,
+    Reversal{Proton} => -20.0,
+    Voltage => -60.0,
+    Calcium => 0.05,
+    Reversal{Calcium} => 0.0)
+
+    Liu_conv = Cm
+
+    channels = [Liu.Na(gNa * Liu_conv), Liu.CaS(gCaS * Liu_conv), Liu.CaT(gCaT * Liu_conv), Liu.Ka(gKa * Liu_conv), Liu.KCa(gKCa * Liu_conv), Liu.Kdr(gKd * Liu_conv), Liu.H(gH * Liu_conv), Liu.leak(0.01)]
+
+	b = BasicNeuron(NoGeometry(Cm), defaults, somatic_parameters, channels, :Liu_neuron)
+
+	neur = b() #no synapses
+
+    prob = ODEProblem(neur.sys, [], (0.0, 5000.0), [])
 
     sol = solve(prob, AutoTsit5(Rosenbrock23()), save_idxs=[1, 2], abstol=1e-9, reltol=1e-9)
 
